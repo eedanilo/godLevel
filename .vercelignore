@@ -1,9 +1,0 @@
-backend/
-docker-compose.yml
-*.md
-!README.md
-generate_data.py
-database-schema.sql
-start.sh
-.gitignore
-
