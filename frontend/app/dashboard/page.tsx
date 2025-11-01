@@ -91,6 +91,15 @@ export default function DashboardPage() {
     }),
   })
 
+  // Estado para lojas selecionadas (máximo 5)
+  const [selectedStoreIds, setSelectedStoreIds] = useState<number[]>([])
+
+  // Buscar lista de lojas disponíveis
+  const { data: storesData } = useQuery({
+    queryKey: ['stores'],
+    queryFn: () => api.getStores(),
+  })
+
   const { data: storePerformance, isLoading: storesLoading } = useQuery({
     queryKey: ['store-performance', dateRange.start, dateRange.end],
     queryFn: () => api.getStorePerformance({
@@ -98,6 +107,32 @@ export default function DashboardPage() {
       end_date: dateRange.end,
     }),
   })
+
+  // Filtrar dados de lojas baseado na seleção
+  const filteredStorePerformance = storePerformance?.stores
+    ? storePerformance.stores.filter(store => 
+        selectedStoreIds.length === 0 || selectedStoreIds.includes(store.id)
+      )
+    : []
+
+  const handleStoreToggle = (storeId: number) => {
+    setSelectedStoreIds(prev => {
+      if (prev.includes(storeId)) {
+        // Remover se já estiver selecionado
+        return prev.filter(id => id !== storeId)
+      } else {
+        // Adicionar se ainda não tiver 5 selecionadas
+        if (prev.length < 5) {
+          return [...prev, storeId]
+        }
+        return prev
+      }
+    })
+  }
+
+  const clearStoreSelection = () => {
+    setSelectedStoreIds([])
+  }
 
   const { data: channelComparison, isLoading: channelsLoading } = useQuery({
     queryKey: ['channel-comparison', dateRange.start, dateRange.end],
@@ -267,7 +302,62 @@ export default function DashboardPage() {
 
         {view === 'stores' && (
           <div className="grid grid-cols-1 gap-6">
-            <StorePerformanceTable data={storePerformance?.stores || []} isLoading={storesLoading} />
+            {/* Seletor de Lojas */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-lg font-semibold text-gray-900">Comparar Lojas</h3>
+                  <Tooltip 
+                    content="Selecione até 5 lojas para comparar. Se nenhuma loja for selecionada, todas as lojas serão exibidas."
+                    icon={true}
+                    position="top"
+                  />
+                </div>
+                {selectedStoreIds.length > 0 && (
+                  <button
+                    onClick={clearStoreSelection}
+                    className="text-sm text-red-600 hover:text-red-800 underline"
+                  >
+                    Limpar Seleção
+                  </button>
+                )}
+              </div>
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  {selectedStoreIds.length === 0 
+                    ? "Nenhuma loja selecionada (mostrando todas)" 
+                    : `${selectedStoreIds.length} loja(s) selecionada(s) de 5`
+                  }
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {storesData?.stores?.map((store) => {
+                    const isSelected = selectedStoreIds.includes(store.id)
+                    const canSelect = isSelected || selectedStoreIds.length < 5
+                    return (
+                      <button
+                        key={store.id}
+                        onClick={() => handleStoreToggle(store.id)}
+                        disabled={!canSelect}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : canSelect
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                        }`}
+                        title={!canSelect ? 'Máximo de 5 lojas selecionadas' : isSelected ? 'Clique para remover' : 'Clique para adicionar'}
+                      >
+                        {store.name} {store.city ? `(${store.city}, ${store.state})` : ''}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            <StorePerformanceTable 
+              data={filteredStorePerformance} 
+              isLoading={storesLoading} 
+            />
           </div>
         )}
 

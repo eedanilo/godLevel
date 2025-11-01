@@ -329,6 +329,17 @@ class ApiClient {
   async getChannels(): Promise<{ channels: Channel[] }> {
     return this.fetch('/api/meta/channels')
   }
+
+  async getStores(): Promise<{ stores: Store[] }> {
+    return this.fetch('/api/meta/stores')
+  }
+}
+
+export interface Store {
+  id: number
+  name: string
+  city: string
+  state: string
 }
 
 export interface Channel {
