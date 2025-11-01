@@ -199,18 +199,42 @@ async def get_columns(table_name: str, db: asyncpg.Pool = Depends(get_db)):
 
 @app.get("/api/meta/channels")
 async def get_channels(db: asyncpg.Pool = Depends(get_db)):
-    """Retorna lista de canais disponíveis"""
+    """Retorna lista de canais disponíveis (únicos por nome e tipo)"""
     try:
         async with db.acquire() as conn:
+            # Retornar apenas canais únicos por nome e tipo, pegando o ID mínimo como representante
             channels = await conn.fetch("""
-                SELECT 
-                    id,
+                SELECT DISTINCT ON (name, type)
+                    MIN(id) OVER (PARTITION BY name, type) as id,
                     name,
                     type,
                     description
                 FROM channels
-                ORDER BY name
+                ORDER BY name, type, id
             """)
+            
+            # Alternativamente, usar GROUP BY para garantir unicidade
+            # Se DISTINCT ON não funcionar bem, usar esta query:
+            # channels = await conn.fetch("""
+            #     SELECT 
+            #         MIN(id) as id,
+            #         name,
+            #         type,
+            #         MAX(description) as description
+            #     FROM channels
+            #     GROUP BY name, type
+            #     ORDER BY name, type
+            # """)
+            
+            # Remover duplicatas se ainda houver (fallback)
+            seen = set()
+            unique_channels = []
+            for c in channels:
+                key = (str(c["name"]), str(c["type"]) if c["type"] else "")
+                if key not in seen:
+                    seen.add(key)
+                    unique_channels.append(c)
+            
             return {
                 "channels": [
                     {
@@ -219,7 +243,7 @@ async def get_channels(db: asyncpg.Pool = Depends(get_db)):
                         "type": str(c["type"]) if c["type"] else "",
                         "description": str(c["description"]) if c["description"] else ""
                     }
-                    for c in channels
+                    for c in unique_channels
                 ]
             }
     except Exception as e:
@@ -633,6 +657,12 @@ async def get_top_products(
                 conditions.append(f"s.created_at < ${param_num}")
                 params_list.append(end_date_obj)
                 param_num += 1
+            
+            if channel_id_list:
+                placeholders = ",".join([f"${i}" for i in range(param_num, param_num + len(channel_id_list))])
+                conditions.append(f"s.channel_id IN ({placeholders})")
+                params_list.extend(channel_id_list)
+                param_num += len(channel_id_list)
             
             where_sql = " AND ".join(conditions)
             
