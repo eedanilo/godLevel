@@ -27,8 +27,8 @@ export default function DashboardPage() {
     end: '2025-05-31',
   })
 
-  // Estado para canais selecionados
-  const [selectedChannels, setSelectedChannels] = useState<number[]>([])
+  // Estado para canal selecionado (null = todos, number = canal específico)
+  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null)
 
   // Buscar lista de canais disponíveis
   const { data: channelsData } = useQuery({
@@ -38,11 +38,11 @@ export default function DashboardPage() {
 
   // Queries - passar start_date e end_date explicitamente
   const { data: revenue, isLoading: revenueLoading } = useQuery({
-    queryKey: ['revenue', dateRange.start, dateRange.end, selectedChannels],
+    queryKey: ['revenue', dateRange.start, dateRange.end, selectedChannelId],
     queryFn: () => api.getRevenue({
       start_date: dateRange.start,
       end_date: dateRange.end,
-      channel_ids: selectedChannels.length > 0 ? selectedChannels : undefined,
+      channel_ids: selectedChannelId !== null ? [selectedChannelId] : undefined,
     }),
   })
 
@@ -54,7 +54,7 @@ export default function DashboardPage() {
   }
   
   const { data: topProducts, isLoading: productsLoading, refetch: refetchTopProducts } = useQuery({
-    queryKey: ['top-products', dateRange.start, dateRange.end, topProductsOrderBy, selectedChannels],
+    queryKey: ['top-products', dateRange.start, dateRange.end, topProductsOrderBy, selectedChannelId],
     queryFn: async () => {
       console.log('[Dashboard] Fetching top products with order_by:', topProductsOrderBy, 'queryKey includes:', topProductsOrderBy)
       const result = await api.getTopProducts({ 
@@ -62,7 +62,7 @@ export default function DashboardPage() {
         start_date: dateRange.start,
         end_date: dateRange.end,
         order_by: topProductsOrderBy,
-        channel_ids: selectedChannels.length > 0 ? selectedChannels : undefined,
+        channel_ids: selectedChannelId !== null ? [selectedChannelId] : undefined,
       })
       console.log('[Dashboard] Received top products count:', result?.products?.length)
       if (result?.products && result.products.length > 0) {
@@ -83,11 +83,11 @@ export default function DashboardPage() {
   }, [topProductsOrderBy, refetchTopProducts])
 
   const { data: peakHours, isLoading: hoursLoading } = useQuery({
-    queryKey: ['peak-hours', dateRange.start, dateRange.end, selectedChannels],
+    queryKey: ['peak-hours', dateRange.start, dateRange.end, selectedChannelId],
     queryFn: () => api.getPeakHours({
       start_date: dateRange.start,
       end_date: dateRange.end,
-      channel_ids: selectedChannels.length > 0 ? selectedChannels : undefined,
+      channel_ids: selectedChannelId !== null ? [selectedChannelId] : undefined,
     }),
   })
 
@@ -108,11 +108,11 @@ export default function DashboardPage() {
   })
 
   const { data: dailyTrends, isLoading: trendsLoading } = useQuery({
-    queryKey: ['daily-trends', dateRange.start, dateRange.end, selectedChannels],
+    queryKey: ['daily-trends', dateRange.start, dateRange.end, selectedChannelId],
     queryFn: () => api.getDailyTrends({
       start_date: dateRange.start,
       end_date: dateRange.end,
-      channel_ids: selectedChannels.length > 0 ? selectedChannels : undefined,
+      channel_ids: selectedChannelId !== null ? [selectedChannelId] : undefined,
     }),
   })
 
@@ -172,36 +172,30 @@ export default function DashboardPage() {
               {/* Filtro de Canais */}
               <div className="flex items-center space-x-2">
                 <Tooltip 
-                  content="Selecione os canais de venda para filtrar os dados. Você pode escolher múltiplos canais ou deixar vazio para ver todos."
+                  content="Selecione o canal de venda para filtrar os dados. Escolha 'Todos' para ver dados de todos os canais."
                   icon={true}
                   position="bottom"
                 />
-                <label className="text-sm font-medium text-gray-700">Canais:</label>
+                <label className="text-sm font-medium text-gray-700">Canal:</label>
                 <select
-                  multiple
-                  value={selectedChannels.map(String)}
+                  value={selectedChannelId !== null ? selectedChannelId.toString() : ''}
                   onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value))
-                    setSelectedChannels(selected)
+                    const value = e.target.value
+                    if (value === '') {
+                      setSelectedChannelId(null) // Todos
+                    } else {
+                      setSelectedChannelId(parseInt(value))
+                    }
                   }}
-                  className="border rounded px-3 py-1 text-sm text-gray-900 bg-white min-w-[200px] max-h-32 overflow-y-auto"
-                  size={Math.min(channelsData?.channels?.length || 1, 5)}
+                  className="border rounded px-3 py-1.5 text-sm text-gray-900 bg-white min-w-[200px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="" disabled>Selecione os canais...</option>
+                  <option value="">Todos os Canais</option>
                   {channelsData?.channels?.map((channel) => (
                     <option key={channel.id} value={channel.id.toString()}>
                       {channel.name} {channel.type ? `(${channel.type})` : ''}
                     </option>
                   ))}
                 </select>
-                {selectedChannels.length > 0 && (
-                  <button
-                    onClick={() => setSelectedChannels([])}
-                    className="text-sm text-red-600 hover:text-red-800 underline"
-                  >
-                    Limpar
-                  </button>
-                )}
               </div>
             </div>
           </div>
