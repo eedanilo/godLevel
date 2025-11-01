@@ -4,34 +4,41 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 venv/
+env/
 ENV/
-*.egg-info/
-dist/
-build/
+.venv
 
-# Database
-*.db
-*.sqlite3
+# Node
+node_modules/
+.next/
+out/
+build/
+dist/
 
 # Environment
 .env
 .env.local
+.env*.local
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-.DS_Store
+*~
 
-# Docker
-.docker/
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
+logs/
 
-# OS
-Thumbs.db
+# Docker
+postgres_data/
 
+# Coverage
+.coverage
+htmlcov/
