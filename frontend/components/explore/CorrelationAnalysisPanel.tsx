@@ -209,7 +209,7 @@ export default function CorrelationAnalysisPanel({ dateRange }: CorrelationAnaly
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {channelData.map((channel, idx) => (
+                {channelData.map((channel: any, idx: number) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{channel.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{channel.type}</td>
