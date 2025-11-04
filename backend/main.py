@@ -564,15 +564,41 @@ def build_query(query: QueryRequest) -> Dict[str, Any]:
     elif query.metrics:  # Se há métricas, precisa group by nas dimensões
         group_by_parts.extend([sanitize_field_name(d.field) for d in query.dimensions])
     
-    # ORDER BY (sanitized)
+    # ORDER BY (sanitized - allow aliases)
     order_by_parts = []
     if query.order_by:
+        # Collect all aliases that were defined
+        defined_aliases = set()
+        for dim in query.dimensions:
+            if dim.alias:
+                defined_aliases.add(dim.alias)
+            else:
+                defined_aliases.add(dim.field)
+        for metric in query.metrics:
+            if metric.alias:
+                defined_aliases.add(metric.alias)
+            else:
+                defined_aliases.add(f"{metric.aggregation}_{metric.field}")
+        
         for order in query.order_by:
-            field = sanitize_field_name(order.get("field"))
+            field = order.get("field")
             direction = order.get("direction", "ASC").upper()
             if direction not in {"ASC", "DESC"}:
                 direction = "ASC"
-            order_by_parts.append(f"{field} {direction}")
+            
+            # If field is an alias, use it directly (sanitize only for safety)
+            # Otherwise, sanitize as a field name
+            if field in defined_aliases:
+                # It's an alias - just sanitize for basic safety (no SQL injection)
+                from app.utils.query_validation import re
+                if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', field):
+                    order_by_parts.append(f'"{field}" {direction}')
+                else:
+                    raise ValueError(f"Invalid alias format: {field}")
+            else:
+                # It's a field name - sanitize properly
+                sanitized_field = sanitize_field_name(field)
+                order_by_parts.append(f"{sanitized_field} {direction}")
     
     # Montar query final
     sql = f"SELECT {', '.join(select_parts)}"
