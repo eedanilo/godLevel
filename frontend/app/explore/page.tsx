@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, Store, Product, Channel } from '@/lib/api'
-import QueryBuilder from '@/components/QueryBuilder'
-// import DetailedAnalysisPanel from '@/components/DetailedAnalysisPanel'
 import { Play, Download, BarChart3, Info, Store as StoreIcon, Package, Radio, Search, X } from 'lucide-react'
 import { format, subDays } from 'date-fns'
+import QueryBuilder from '@/components/QueryBuilder'
+import DetailedAnalysisPanel from '@/components/DetailedAnalysisPanel'
 
 type EntityType = 'store' | 'product' | 'channel' | null
 type ViewMode = 'query-builder' | 'detailed-analysis'
@@ -105,6 +105,32 @@ export default function ExplorePage() {
     setSelectedEntityId(id)
     setSelectedEntityName(name)
   }
+
+  // Calcular entidades filtradas
+  const getFilteredEntities = (): (Store | Product | Channel)[] => {
+    if (entityType === 'store') {
+      const stores = storesData?.stores || []
+      if (!searchTerm) return stores
+      return stores.filter((store: Store) => 
+        store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        store.city.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    if (entityType === 'product') {
+      return productsData?.products || []
+    }
+    if (entityType === 'channel') {
+      const channels = channelsData?.channels || []
+      if (!searchTerm) return channels
+      return channels.filter((channel: Channel) => 
+        channel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        channel.type.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    return []
+  }
+
+  const filteredEntities = getFilteredEntities()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -226,7 +252,7 @@ export default function ExplorePage() {
                         placeholder={`Buscar ${entityType === 'store' ? 'loja' : entityType === 'product' ? 'produto' : 'canal'}...`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900"
                       />
                       {searchTerm && (
                         <button
@@ -263,26 +289,9 @@ export default function ExplorePage() {
 
                   {/* Entity List */}
                   <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                    {(() => {
-                      let entities: (Store | Product | Channel)[] = []
-                      if (entityType === 'store') {
-                        const stores = storesData?.stores || []
-                        entities = !searchTerm ? stores : stores.filter(store => 
-                          store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          store.city.toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                      } else if (entityType === 'product') {
-                        entities = productsData?.products || []
-                      } else if (entityType === 'channel') {
-                        const channels = channelsData?.channels || []
-                        entities = !searchTerm ? channels : channels.filter(channel => 
-                          channel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          channel.type.toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                      }
-                      return entities.length > 0 ? (
-                        <div className="divide-y divide-gray-200">
-                          {entities.map((entity: Store | Product | Channel) => (
+                    {filteredEntities.length > 0 ? (
+                      <div className="divide-y divide-gray-200">
+                        {filteredEntities.map((entity: Store | Product | Channel) => (
                           <button
                             key={entity.id}
                             onClick={() => handleEntitySelect(entity.id, entity.name)}
@@ -302,13 +311,12 @@ export default function ExplorePage() {
                             )}
                           </button>
                         ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>Nenhum resultado encontrado</p>
-                        </div>
-                      )
-                    })()}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>Nenhum resultado encontrado</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -316,9 +324,13 @@ export default function ExplorePage() {
 
             {/* Detailed Analysis Panel */}
             {selectedEntityId && entityType && (
-              <div className="p-4 bg-white rounded-lg shadow">
-                <p>Análise detalhada será exibida aqui (componente temporariamente desabilitado)</p>
-              </div>
+              <DetailedAnalysisPanel
+                entityType={entityType}
+                entityId={selectedEntityId}
+                entityName={selectedEntityName}
+                startDate={dateRange.start}
+                endDate={dateRange.end}
+              />
             )}
           </div>
         ) : (
@@ -336,107 +348,80 @@ export default function ExplorePage() {
                   <span>Resultados</span>
                 </h2>
 
-              {isExecuting && (
-                <div className="text-center py-12">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                  <p className="mt-4 text-gray-600">Executando query...</p>
-                </div>
-              )}
-
-              {!isExecuting && !queryResult && (
-                <div className="text-center py-12">
-                  <Info className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                  <p className="text-lg font-medium text-gray-900 mb-2">Configure sua query</p>
-                  <p className="text-sm text-gray-600 mb-6">Selecione pelo menos uma métrica ou dimensão para visualizar os dados</p>
-                  <div className="text-left max-w-md mx-auto bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <p className="text-sm font-medium text-blue-900 mb-2">💡 Como começar:</p>
-                    <ul className="text-xs text-blue-800 space-y-2 mb-4">
-                      <li>• Adicione <strong className="text-blue-900">cálculos e agregações</strong> para ver somas, médias, contagens</li>
-                      <li>• Adicione <strong className="text-blue-900">campos para agrupar</strong> para organizar os dados</li>
-                      <li>• Use <strong className="text-blue-900">filtros</strong> para refinar os resultados</li>
-                      <li>• Defina um <strong className="text-blue-900">período</strong> para filtrar por datas</li>
-                    </ul>
-                    <div className="border-t border-blue-200 pt-3 mt-3">
-                      <p className="text-xs font-medium text-blue-900 mb-2">Exemplo rápido:</p>
-                      <button
-                        onClick={() => {
-                          setQuery({
-                            dimensions: [],
-                            metrics: [{ field: 'total_amount', aggregation: 'sum', alias: 'total_revenue' }],
-                            filters: [],
-                            time_range: { start: '2025-05-01', end: '2025-05-31' },
-                            group_by: [],
-                            order_by: [],
-                            limit: 100,
-                          })
-                        }}
-                        className="text-xs text-blue-700 hover:text-blue-900 underline"
-                      >
-                        Carregar exemplo: Faturamento total em maio 2025
-                      </button>
-                    </div>
+                {isExecuting && (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                    <p className="mt-4 text-gray-600">Executando query...</p>
                   </div>
-                </div>
-              )}
+                )}
 
-              {!isExecuting && queryResult && (
-                <>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="text-sm text-gray-700 font-medium">
-                      {queryResult.count || queryResult.data?.length || 0} resultado(s) encontrado(s)
-                    </div>
-                    {queryResult.data && queryResult.data.length > 0 && (
-                      <div className="text-xs text-gray-500">
-                        Mostrando até 100 primeiros resultados
+                {!isExecuting && !queryResult && (
+                  <div className="text-center py-12">
+                    <Info className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg font-medium text-gray-900 mb-2">Configure sua query</p>
+                    <p className="text-sm text-gray-600 mb-6">Selecione pelo menos uma métrica ou dimensão para visualizar os dados</p>
+                  </div>
+                )}
+
+                {!isExecuting && queryResult && (
+                  <>
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="text-sm text-gray-700 font-medium">
+                        {queryResult.count || queryResult.data?.length || 0} resultado(s) encontrado(s)
                       </div>
-                    )}
-                  </div>
-                  {queryResult.data && queryResult.data.length > 0 ? (
-                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            {Object.keys(queryResult.data[0] || {}).map((key) => (
-                              <th
-                                key={key}
-                                className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-gray-200"
-                              >
-                                {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {queryResult.data.slice(0, 100).map((row: any, idx: number) => (
-                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                      {queryResult.data && queryResult.data.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          Mostrando até 100 primeiros resultados
+                        </div>
+                      )}
+                    </div>
+                    {queryResult.data && queryResult.data.length > 0 ? (
+                      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
                               {Object.keys(queryResult.data[0] || {}).map((key) => (
-                                <td
+                                <th
                                   key={key}
-                                  className="px-4 py-3 text-sm text-gray-900"
+                                  className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-gray-200"
                                 >
-                                  {row[key] !== null && row[key] !== undefined
-                                    ? typeof row[key] === 'number'
-                                      ? row[key].toLocaleString('pt-BR', {
-                                          minimumFractionDigits: 2,
-                                          maximumFractionDigits: 2,
-                                        })
-                                      : String(row[key])
-                                    : '-'}
-                                </td>
+                                  {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                </th>
                               ))}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200">
-                      <p>Nenhum resultado encontrado para esta query.</p>
-                      <p className="text-xs mt-2">Tente ajustar os filtros ou o período.</p>
-                    </div>
-                  )}
-                </>
-              )}
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {queryResult.data.slice(0, 100).map((row: any, idx: number) => (
+                              <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                {Object.keys(queryResult.data[0] || {}).map((key) => (
+                                  <td
+                                    key={key}
+                                    className="px-4 py-3 text-sm text-gray-900"
+                                  >
+                                    {row[key] !== null && row[key] !== undefined
+                                      ? typeof row[key] === 'number'
+                                        ? row[key].toLocaleString('pt-BR', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })
+                                        : String(row[key])
+                                      : '-'}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200">
+                        <p>Nenhum resultado encontrado para esta query.</p>
+                        <p className="text-xs mt-2">Tente ajustar os filtros ou o período.</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -444,4 +429,3 @@ export default function ExplorePage() {
     </div>
   )
 }
-
