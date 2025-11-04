@@ -22,7 +22,8 @@ export default function LoginPage() {
       await login(email, password)
       router.push('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao fazer login')
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao fazer login'
+      setError(errorMessage || 'Email ou senha incorretos')
     } finally {
       setLoading(false)
     }

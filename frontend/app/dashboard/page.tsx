@@ -16,14 +16,12 @@ import CustomersPanel from '@/components/CustomersPanel'
 import StoreSelector from '@/components/StoreSelector'
 import Tooltip from '@/components/Tooltip'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { useAuth } from '@/contexts/AuthContext'
-import { Calendar, TrendingUp, Package, Store, Clock, LogOut, User } from 'lucide-react'
+import { Calendar, TrendingUp, Package, Store, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 export default function DashboardPage() {
   const searchParams = useSearchParams()
   const view = searchParams.get('view') || 'overview'
-  const { user, logout } = useAuth()
   
   // Data padrão: Maio 2025 (onde estão os dados do banco)
   const [dateRange, setDateRange] = useState({

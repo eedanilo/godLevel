@@ -7,6 +7,7 @@ export interface User {
   email: string
   name: string
   role: string
+  role_label?: string
 }
 
 export interface LoginResponse {
@@ -88,7 +89,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.detail || 'Erro ao fazer login')
+    throw new Error(error.detail || 'Email ou senha incorretos')
   }
 
   const data: LoginResponse = await response.json()

@@ -19,21 +19,24 @@ MOCK_USERS = {
         "email": "admin@restaurante.com",
         "name": "Administrador",
         "password": "admin123",  # Em produção, seria hash
-        "role": "admin"
+        "role": "admin",
+        "role_label": "Administrador"
     },
     "maria@restaurante.com": {
         "id": 2,
         "email": "maria@restaurante.com",
         "name": "Maria Silva",
         "password": "maria123",
-        "role": "owner"
+        "role": "owner",
+        "role_label": "Proprietária"
     },
     "gerente@restaurante.com": {
         "id": 3,
         "email": "gerente@restaurante.com",
         "name": "João Gerente",
         "password": "gerente123",
-        "role": "manager"
+        "role": "manager",
+        "role_label": "Gerente"
     }
 }
 
@@ -89,13 +92,13 @@ async def login(login_data: LoginRequest):
     
     if not user:
         logger.warning(f"Login attempt with invalid email: {login_data.email}")
-        raise HTTPException(status_code=401, detail="Email ou senha inválidos")
+        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
     
     # Em um mock, aceitamos qualquer senha que corresponda ou seja "demo"
     # Para facilitar, vamos aceitar qualquer senha para usuários mock
     if login_data.password != user["password"] and login_data.password != "demo":
         logger.warning(f"Login attempt with invalid password for: {login_data.email}")
-        raise HTTPException(status_code=401, detail="Email ou senha inválidos")
+        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
     
     # Gerar token mock (em produção, usar JWT)
     import uuid
@@ -110,7 +113,8 @@ async def login(login_data: LoginRequest):
             "id": user["id"],
             "email": user["email"],
             "name": user["name"],
-            "role": user["role"]
+            "role": user["role"],
+            "role_label": user.get("role_label", user["role"])
         }
     )
 
@@ -132,9 +136,23 @@ async def logout(current_user: Optional[dict] = Depends(get_current_user)):
 async def get_current_user_info(current_user: Optional[dict] = Depends(get_current_user)):
     """Get current user info"""
     if not current_user:
-        raise HTTPException(status_code=401, detail="Não autenticado")
+        raise HTTPException(status_code=401, detail="Usuário não autenticado")
     
-    return UserResponse(**current_user)
+    # Adicionar role_label se não existir
+    user_dict = dict(current_user)
+    user_email = MOCK_TOKENS.get(current_user.get("token", ""))
+    if not user_email:
+        # Tentar encontrar pelo email
+        for email, user in MOCK_USERS.items():
+            if user["email"] == current_user.get("email"):
+                user_dict["role_label"] = user.get("role_label", user["role"])
+                break
+    else:
+        user = MOCK_USERS.get(user_email)
+        if user:
+            user_dict["role_label"] = user.get("role_label", user["role"])
+    
+    return UserResponse(**user_dict)
 
 
 @router.get("/users")

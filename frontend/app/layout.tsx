@@ -21,6 +21,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <QueryClientProvider>
           <AuthProvider>
+            <Navigation />
             {children}
           </AuthProvider>
         </QueryClientProvider>
