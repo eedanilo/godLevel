@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { LayoutDashboard, BarChart3, TrendingUp, Package, Users } from 'lucide-react'
+import { LayoutDashboard, BarChart3, TrendingUp, Package, Users, Store } from 'lucide-react'
 
 export default function Home() {
   const { isAuthenticated } = useAuth()
@@ -80,6 +80,14 @@ export default function Home() {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Clientes</h3>
             <p className="text-gray-600">
               Análise detalhada de clientes, preferências e identificação de churn
+            </p>
+          </Link>
+
+          <Link href="/dashboard?view=stores" className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+            <Store className="w-12 h-12 text-primary-600 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Comparar Lojas</h3>
+            <p className="text-gray-600">
+              Compare performance de até 5 lojas, analisando métricas e identificando diferenças
             </p>
           </Link>
         </div>
