@@ -219,7 +219,7 @@ class ApiClient {
   async getChannelComparison(params?: {
     start_date?: string
     end_date?: string
-  }): Promise<{ channels: ChannelComparison[] }> {
+  }): Promise<{ channels: ChannelComparison[]; total_revenue?: number }> {
     const queryParams = new URLSearchParams()
     if (params?.start_date) queryParams.append('start_date', params.start_date)
     if (params?.end_date) queryParams.append('end_date', params.end_date)

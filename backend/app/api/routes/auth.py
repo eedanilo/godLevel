@@ -36,7 +36,8 @@ MOCK_USERS = {
         "name": "João Gerente",
         "password": "gerente123",
         "role": "manager",
-        "role_label": "Gerente"
+        "role_label": "Gerente",
+        "store_id": 1  # Gerente da loja ID 1
     }
 }
 
@@ -82,7 +83,8 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
         "email": user["email"],
         "name": user["name"],
         "role": user["role"],
-        "role_label": user.get("role_label", user["role"])
+        "role_label": user.get("role_label", user["role"]),
+        "store_id": user.get("store_id")  # ID da loja se for gerente
     }
 
 
@@ -115,7 +117,8 @@ async def login(login_data: LoginRequest):
             "email": user["email"],
             "name": user["name"],
             "role": user["role"],
-            "role_label": user.get("role_label", user["role"])
+            "role_label": user.get("role_label", user["role"]),
+            "store_id": user.get("store_id")  # ID da loja se for gerente
         }
     )
 

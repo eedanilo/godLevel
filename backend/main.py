@@ -58,6 +58,7 @@ app = FastAPI(
 # Importar rotas de autenticação
 from app.api.routes import auth
 app.include_router(auth.router)
+from app.api.routes.auth import get_current_user
 
 # CORS - Permitir requisições do frontend (local e Vercel)
 app.add_middleware(
@@ -79,6 +80,23 @@ async def get_db():
     if not db_pool:
         raise HTTPException(status_code=500, detail="Database pool not initialized")
     return db_pool
+
+
+def get_user_store_id(current_user: Optional[dict] = None) -> Optional[int]:
+    """Helper para obter store_id do usuário atual (se for gerente)"""
+    if current_user and current_user.get("role") == "manager":
+        return current_user.get("store_id")
+    return None
+
+
+def add_store_filter_if_needed(conditions: List[str], params_list: List[Any], param_num: int, current_user: Optional[dict] = None) -> int:
+    """Adiciona filtro de loja se o usuário for gerente"""
+    store_id = get_user_store_id(current_user)
+    if store_id:
+        conditions.append(f"store_id = ${param_num}")
+        params_list.append(store_id)
+        param_num += 1
+    return param_num
 
 
 # ============================================================================
@@ -983,9 +1001,10 @@ async def get_store_performance(
 async def get_channel_comparison(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    db: asyncpg.Pool = Depends(get_db)
+    db: asyncpg.Pool = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user)
 ):
-    """Comparação entre canais"""
+    """Comparação entre canais com porcentagem do faturamento"""
     try:
         async with db.acquire() as conn:
             conditions = ["s.sale_status_desc = 'COMPLETED'"]
@@ -1007,7 +1026,24 @@ async def get_channel_comparison(
                 params_list.append(end_date_obj)
                 param_num += 1
             
+            # Add store filter if user is a manager
+            param_num = add_store_filter_if_needed(conditions, params_list, param_num, current_user)
+            
             where_sql = " AND ".join(conditions)
+            
+            # Primeiro, calcular o total geral para calcular porcentagens
+            total_query = f"""
+                SELECT 
+                    COALESCE(SUM(s.total_amount), 0)::numeric as total_revenue
+                FROM sales s
+                WHERE {where_sql}
+            """
+            if params_list:
+                total_result = await conn.fetchrow(total_query, *params_list)
+            else:
+                total_result = await conn.fetchrow(total_query)
+            
+            total_revenue = float(total_result['total_revenue']) if total_result and total_result['total_revenue'] else 0.0
             
             query = f"""
                 SELECT 
@@ -1031,21 +1067,25 @@ async def get_channel_comparison(
             else:
                 results = await conn.fetch(query)
             
-            # Converter resultados
+            # Converter resultados e calcular porcentagem
             channels_data = []
             for r in results:
+                channel_revenue = float(r['total_revenue']) if r['total_revenue'] is not None else 0.0
+                percentage = (channel_revenue / total_revenue * 100) if total_revenue > 0 else 0.0
+                
                 channels_data.append({
                     'id': int(r['id']) if r['id'] is not None else 0,
                     'channel_name': str(r['channel_name']) if r['channel_name'] else '',
                     'channel_type': str(r['channel_type']) if r['channel_type'] else '',
                     'total_orders': int(r['total_orders']) if r['total_orders'] is not None else 0,
-                    'total_revenue': float(r['total_revenue']) if r['total_revenue'] is not None else 0.0,
+                    'total_revenue': channel_revenue,
+                    'revenue_percentage': round(percentage, 2),
                     'avg_ticket': float(r['avg_ticket']) if r['avg_ticket'] is not None else 0.0,
                     'total_delivery_fee': float(r['total_delivery_fee']) if r['total_delivery_fee'] is not None else 0.0,
                     'avg_delivery_time': float(r['avg_delivery_time']) if r['avg_delivery_time'] is not None else 0.0,
                 })
             
-            return {"channels": channels_data}
+            return {"channels": channels_data, "total_revenue": total_revenue}
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1581,7 +1621,8 @@ async def get_customers(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     channel_ids: Optional[str] = None,
-    db: asyncpg.Pool = Depends(get_db)
+    db: asyncpg.Pool = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user)
 ):
     """Análise de clientes e seus pedidos"""
     try:
@@ -1627,12 +1668,47 @@ async def get_customers(
                 params_list.extend(channel_id_list)
                 param_num += len(channel_id_list)
             
+            # Add store filter if user is a manager
+            param_num = add_store_filter_if_needed(conditions, params_list, param_num, current_user)
+            
             where_sql = " AND ".join(conditions)
             where_sql_with_status = f"s.sale_status_desc = 'COMPLETED' AND {where_sql}"
             
-            # Calculate param numbers for churn and period_end
-            churn_param_num = param_num + 1
-            period_end_param_num = param_num + 2
+            # Calculate param numbers for churn and period_end (will be recalculated after customer_ids)
+            
+            # Simplificar a query para garantir que funcione corretamente
+            # Primeiro, vamos buscar os clientes que têm pedidos no período filtrado
+            period_filter_sql = f"""
+                SELECT DISTINCT s.customer_id
+                FROM sales s
+                WHERE {where_sql_with_status}
+                AND s.customer_id IS NOT NULL
+            """
+            period_customer_ids = await conn.fetch(period_filter_sql, *params_list)
+            period_customer_id_set = {r['customer_id'] for r in period_customer_ids if r['customer_id']}
+            
+            if not period_customer_id_set:
+                return {"customers": []}
+            
+            # Agora, buscar dados completos desses clientes
+            customer_ids_list = list(period_customer_id_set)
+            
+            # Calcular os índices corretos para os parâmetros
+            # all_params = params_list + customer_ids_list + [churn_cutoff_date, period_end_date]
+            # Então:
+            # - params_list[0] = start_date (será all_params[0])
+            # - params_list[1] = end_date (será all_params[1])
+            # - customer_ids começam em all_params[len(params_list)]
+            # - churn e period_end vêm depois de customer_ids
+            
+            # Os índices na query SQL são baseados em all_params:
+            date_param_1 = 1  # start_date (params_list[0] = all_params[0] = $1)
+            date_param_2 = 2  # end_date (params_list[1] = all_params[1] = $2)
+            customer_ids_start = len(params_list) + 1  # Primeiro customer_id
+            churn_param_num = len(params_list) + len(customer_ids_list) + 1
+            period_end_param_num = len(params_list) + len(customer_ids_list) + 2
+            
+            customer_ids_placeholder = ",".join([f"${i}" for i in range(customer_ids_start, customer_ids_start + len(customer_ids_list))])
             
             query = f"""
                 WITH customer_stats AS (
@@ -1641,17 +1717,20 @@ async def get_customers(
                         c.customer_name,
                         c.email,
                         c.phone_number,
-                        COUNT(DISTINCT s.id) as total_orders,
-                        COALESCE(SUM(s.total_amount), 0)::numeric as total_spent,
-                        MAX(s.created_at)::date as last_order_date,
-                        COUNT(DISTINCT CASE WHEN s.created_at >= ${1} AND s.created_at < ${2} THEN s.id END) as orders_in_period,
-                        COALESCE(SUM(CASE WHEN s.created_at >= ${1} AND s.created_at < ${2} THEN s.total_amount ELSE 0 END), 0)::numeric as spent_in_period
+                        COUNT(DISTINCT s_all.id) as total_orders,
+                        COALESCE(SUM(s_all.total_amount), 0)::numeric as total_spent,
+                        MAX(s_all.created_at)::date as last_order_date,
+                        COUNT(DISTINCT CASE WHEN s_period.id IS NOT NULL THEN s_period.id END) as orders_in_period,
+                        COALESCE(SUM(CASE WHEN s_period.id IS NOT NULL THEN s_period.total_amount ELSE 0 END), 0)::numeric as spent_in_period
                     FROM customers c
-                    LEFT JOIN sales s ON s.customer_id = c.id
-                    WHERE c.id IS NOT NULL
-                    AND {where_sql_with_status}
+                    LEFT JOIN sales s_all ON s_all.customer_id = c.id AND s_all.sale_status_desc = 'COMPLETED'
+                    LEFT JOIN sales s_period ON s_period.customer_id = c.id 
+                        AND s_period.sale_status_desc = 'COMPLETED'
+                        AND s_period.created_at >= ${date_param_1} 
+                        AND s_period.created_at < ${date_param_2}
+                    WHERE c.id IN ({customer_ids_placeholder})
                     GROUP BY c.id, c.customer_name, c.email, c.phone_number
-                    HAVING COUNT(DISTINCT s.id) > 0
+                    HAVING COUNT(DISTINCT s_all.id) > 0
                 ),
                 customer_days AS (
                     SELECT 
@@ -1729,15 +1808,14 @@ async def get_customers(
                 LEFT JOIN customer_favorite_day_filtered cfd_filtered ON cfd_filtered.customer_id = cs.customer_id
                 LEFT JOIN customer_favorite_hour_filtered cfh_filtered ON cfh_filtered.customer_id = cs.customer_id
                 LEFT JOIN top_products_per_customer tp ON tp.customer_id = cs.customer_id AND tp.rn = 1
-                WHERE cs.orders_in_period > 0
                 ORDER BY cs.spent_in_period DESC
                 LIMIT 100
             """
             
             # Usar a data final do período (sem o +1 dia) para calcular dias desde último pedido
             period_end_date = current_end_obj - timedelta(days=1)
-            # Combine all parameters: params_list (has dates and channels) + churn_cutoff_date, period_end_date
-            all_params = params_list + [churn_cutoff_date, period_end_date]
+            # Combine all parameters: params_list (has dates and channels) + customer_ids + churn_cutoff_date, period_end_date
+            all_params = params_list + customer_ids_list + [churn_cutoff_date, period_end_date]
             results = await conn.fetch(query, *all_params)
             
             # Converter resultados
