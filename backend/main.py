@@ -1976,8 +1976,9 @@ async def get_detailed_analysis(
                     AND s.created_at >= ${2}
                     AND s.created_at < ${3}
                     GROUP BY p.id, p.name
-                    ORDER BY revenue DESC
-                    LIMIT 10
+                    HAVING SUM(ps.quantity) > 0
+                    ORDER BY revenue DESC, total_quantity DESC
+                    LIMIT 20
                 """
                 breakdown_params = [entity_id, current_start_obj, current_end_obj]
             else:  # channel

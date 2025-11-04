@@ -56,7 +56,25 @@ export default function DetailedAnalysisPanel({
   }
 
   const formatTime = (seconds: number) => {
-    return Math.floor(seconds)
+    const minutes = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    if (minutes === 0) {
+      return `${secs}s`
+    }
+    return `${minutes}min ${secs}s`
+  }
+  
+  const formatTimeMinutes = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const secs = (seconds % 60).toFixed(2)
+    if (minutes === 0) {
+      return `${secs}s`
+    }
+    return `${minutes}min ${secs}s`
+  }
+  
+  const formatDecimal = (value: number, decimals: number = 2) => {
+    return value.toFixed(decimals)
   }
 
   const getBreakdownLabel = () => {
@@ -93,7 +111,7 @@ export default function DetailedAnalysisPanel({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Ticket Médio</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(data.metrics.avg_ticket)}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(parseFloat(formatDecimal(data.metrics.avg_ticket)))}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-purple-500" />
           </div>
@@ -113,7 +131,7 @@ export default function DetailedAnalysisPanel({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Tempo Médio de Preparo</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatTime(data.metrics.avg_production_time)}s</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatTimeMinutes(parseFloat(formatDecimal(data.metrics.avg_production_time)))}</p>
             </div>
             <Clock className="w-8 h-8 text-yellow-500" />
           </div>
@@ -123,7 +141,7 @@ export default function DetailedAnalysisPanel({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Tempo Médio de Entrega</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatTime(data.metrics.avg_delivery_time)}s</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatTimeMinutes(parseFloat(formatDecimal(data.metrics.avg_delivery_time)))}</p>
             </div>
             <Clock className="w-8 h-8 text-red-500" />
           </div>
@@ -152,10 +170,10 @@ export default function DetailedAnalysisPanel({
               <Tooltip 
                 formatter={(value: any, name: string) => {
                   if (name === 'revenue' || name === 'avg_ticket') {
-                    return formatCurrency(value)
+                    return formatCurrency(parseFloat(formatDecimal(value)))
                   }
                   if (name === 'avg_production_time' || name === 'avg_delivery_time') {
-                    return `${formatTime(value)}s`
+                    return formatTimeMinutes(parseFloat(formatDecimal(value)))
                   }
                   return value
                 }}
@@ -192,7 +210,7 @@ export default function DetailedAnalysisPanel({
                 dataKey="avg_production_time" 
                 stroke="#f59e0b" 
                 strokeWidth={2}
-                name="Tempo Preparo (s)"
+                name="Tempo Preparo"
               />
               <Line 
                 yAxisId="left"
@@ -200,7 +218,7 @@ export default function DetailedAnalysisPanel({
                 dataKey="avg_delivery_time" 
                 stroke="#ef4444" 
                 strokeWidth={2}
-                name="Tempo Entrega (s)"
+                name="Tempo Entrega"
               />
             </LineChart>
           </ResponsiveContainer>
@@ -227,7 +245,7 @@ export default function DetailedAnalysisPanel({
               <Tooltip 
                 formatter={(value: any, name: string) => {
                   if (name === 'revenue') {
-                    return formatCurrency(value)
+                    return formatCurrency(parseFloat(formatDecimal(value)))
                   }
                   return value
                 }}

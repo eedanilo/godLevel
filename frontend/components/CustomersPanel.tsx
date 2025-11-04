@@ -154,6 +154,7 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
 
   const customers: CustomerData[] = data?.customers || []
   const churnRiskCustomers = customers.filter(c => c.is_churn_risk)
+  const filteredAndSortedCustomersList = filteredAndSortedCustomers || []
 
   const activeFilters = filterProduct || filterDay || filterHour || filterChurnOnly
 
@@ -263,7 +264,7 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
         </div>
         {activeFilters && (
           <div className="mt-3 text-xs text-gray-600">
-            Mostrando {filteredAndSortedCustomers.length} de {customers.length} cliente{customers.length !== 1 ? 's' : ''}
+            Mostrando {filteredAndSortedCustomersList.length} de {customers.length} cliente{customers.length !== 1 ? 's' : ''}
           </div>
         )}
       </div>
@@ -276,7 +277,7 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
             <span>Análise de Clientes</span>
           </h3>
           <span className="text-sm text-gray-500">
-            {filteredAndSortedCustomers.length} de {customers.length} cliente{(filteredAndSortedCustomers.length !== 1 || customers.length !== 1) ? 's' : ''}
+            {filteredAndSortedCustomersList.length} de {customers.length} cliente{(filteredAndSortedCustomersList.length !== 1 || customers.length !== 1) ? 's' : ''}
           </span>
         </div>
 
@@ -285,7 +286,7 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
             <p>Nenhum cliente encontrado para o período selecionado.</p>
             <p className="text-sm mt-2">Tente ajustar as datas de filtro.</p>
           </div>
-        ) : filteredAndSortedCustomers.length === 0 ? (
+        ) : filteredAndSortedCustomersList.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <p>Nenhum cliente corresponde aos filtros selecionados.</p>
             <p className="text-sm mt-2">Tente ajustar os filtros.</p>
@@ -436,7 +437,7 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAndSortedCustomers.map((customer) => (
+                {filteredAndSortedCustomersList.map((customer) => (
                   <tr
                     key={customer.customer_id}
                     className={`hover:bg-gray-50 transition-colors ${
