@@ -185,7 +185,7 @@ export default function StoreSelector({
                   <div className="font-medium text-gray-900">{store.name}</div>
                   {(store.city || store.state) && (
                     <div className="text-xs text-gray-500">
-                      {store.city}, {store.state}
+                      {store.city || ''}{store.city && store.state ? ', ' : ''}{store.state || ''}
                     </div>
                   )}
                 </button>
@@ -194,10 +194,22 @@ export default function StoreSelector({
           )}
 
           {/* Mensagem quando não há resultados */}
-          {showSuggestions && searchTerm.length > 0 && filteredStores.length === 0 && (
+          {showSuggestions && searchTerm.length > 0 && filteredStores.length === 0 && stores.length > 0 && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
               <p className="text-sm text-gray-500 text-center">
                 Nenhuma loja encontrada para "{searchTerm}"
+              </p>
+              <p className="text-xs text-gray-400 text-center mt-1">
+                {stores.length} loja(s) disponível(is) no total
+              </p>
+            </div>
+          )}
+
+          {/* Mensagem quando não há lojas disponíveis */}
+          {showSuggestions && stores.length === 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+              <p className="text-sm text-gray-500 text-center">
+                Nenhuma loja disponível. Verifique se o backend está retornando dados.
               </p>
             </div>
           )}

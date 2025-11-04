@@ -257,6 +257,39 @@ async def get_channels(db: asyncpg.Pool = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/meta/stores")
+async def get_stores(db: asyncpg.Pool = Depends(get_db)):
+    """Retorna lista de lojas disponíveis"""
+    try:
+        async with db.acquire() as conn:
+            stores = await conn.fetch("""
+                SELECT 
+                    id,
+                    name,
+                    city,
+                    state
+                FROM stores
+                WHERE is_active = true
+                ORDER BY name, city
+            """)
+            
+            return {
+                "stores": [
+                    {
+                        "id": int(s["id"]),
+                        "name": str(s["name"]),
+                        "city": str(s["city"]) if s["city"] else "",
+                        "state": str(s["state"]) if s["state"] else ""
+                    }
+                    for s in stores
+                ]
+            }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/query")
 async def execute_query(query: QueryRequest, db: asyncpg.Pool = Depends(get_db)):
     """
