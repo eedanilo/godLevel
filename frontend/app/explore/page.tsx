@@ -2,12 +2,27 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, Store, Product, Channel } from '@/lib/api'
 import QueryBuilder from '@/components/QueryBuilder'
-import { Play, Download, BarChart3, Info } from 'lucide-react'
+import DetailedAnalysisPanel from '@/components/DetailedAnalysisPanel'
+import { Play, Download, BarChart3, Info, Store as StoreIcon, Package, Radio, Search, X } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 
+type EntityType = 'store' | 'product' | 'channel' | null
+type ViewMode = 'query-builder' | 'detailed-analysis'
+
 export default function ExplorePage() {
+  const [viewMode, setViewMode] = useState<ViewMode>('detailed-analysis')
+  const [entityType, setEntityType] = useState<EntityType>(null)
+  const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null)
+  const [selectedEntityName, setSelectedEntityName] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  
+  const [dateRange, setDateRange] = useState({
+    start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+    end: format(new Date(), 'yyyy-MM-dd'),
+  })
+
   const [query, setQuery] = useState<any>({
     dimensions: [],
     metrics: [],
@@ -23,6 +38,23 @@ export default function ExplorePage() {
 
   const [queryResult, setQueryResult] = useState<any>(null)
   const [isExecuting, setIsExecuting] = useState(false)
+  
+  // Fetch stores, products, channels
+  const { data: storesData } = useQuery({
+    queryKey: ['stores'],
+    queryFn: () => api.getStores(),
+  })
+
+  const { data: productsData } = useQuery({
+    queryKey: ['products', searchTerm],
+    queryFn: () => api.getProducts({ limit: 100, search: searchTerm || undefined }),
+    enabled: entityType === 'product',
+  })
+
+  const { data: channelsData } = useQuery({
+    queryKey: ['channels'],
+    queryFn: () => api.getChannels(),
+  })
 
   const executeQuery = async () => {
     // Validação básica
@@ -62,6 +94,41 @@ export default function ExplorePage() {
     link.click()
   }
 
+  const handleEntityTypeChange = (type: EntityType) => {
+    setEntityType(type)
+    setSelectedEntityId(null)
+    setSelectedEntityName('')
+    setSearchTerm('')
+  }
+
+  const handleEntitySelect = (id: number, name: string) => {
+    setSelectedEntityId(id)
+    setSelectedEntityName(name)
+  }
+
+  const getFilteredEntities = () => {
+    if (entityType === 'store') {
+      const stores = storesData?.stores || []
+      if (!searchTerm) return stores
+      return stores.filter(store => 
+        store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        store.city.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    if (entityType === 'product') {
+      return productsData?.products || []
+    }
+    if (entityType === 'channel') {
+      const channels = channelsData?.channels || []
+      if (!searchTerm) return channels
+      return channels.filter(channel => 
+        channel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        channel.type.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    return []
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -70,22 +137,50 @@ export default function ExplorePage() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Explorar Dados</h1>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={executeQuery}
-                disabled={isExecuting}
-                className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Play className="w-4 h-4" />
-                <span>Executar Query</span>
-              </button>
-              {queryResult && (
+              {/* View Mode Toggle */}
+              <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={exportToCSV}
-                  className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  onClick={() => setViewMode('detailed-analysis')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'detailed-analysis'
+                      ? 'bg-white text-primary-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Exportar CSV</span>
+                  Análise Detalhada
                 </button>
+                <button
+                  onClick={() => setViewMode('query-builder')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'query-builder'
+                      ? 'bg-white text-primary-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Query Builder
+                </button>
+              </div>
+              
+              {viewMode === 'query-builder' && (
+                <>
+                  <button
+                    onClick={executeQuery}
+                    disabled={isExecuting}
+                    className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Play className="w-4 h-4" />
+                    <span>Executar Query</span>
+                  </button>
+                  {queryResult && (
+                    <button
+                      onClick={exportToCSV}
+                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Exportar CSV</span>
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -93,19 +188,162 @@ export default function ExplorePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Query Builder */}
-          <div className="lg:col-span-1">
-            <QueryBuilder query={query} onChange={setQuery} />
-          </div>
+        {viewMode === 'detailed-analysis' ? (
+          <div className="space-y-6">
+            {/* Entity Type Selection */}
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Selecione o tipo de análise</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <button
+                  onClick={() => handleEntityTypeChange('store')}
+                  className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors ${
+                    entityType === 'store'
+                      ? 'border-primary-600 bg-primary-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <StoreIcon className={`w-6 h-6 ${entityType === 'store' ? 'text-primary-600' : 'text-gray-500'}`} />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Lojas</p>
+                    <p className="text-sm text-gray-600">Análise por loja</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleEntityTypeChange('product')}
+                  className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors ${
+                    entityType === 'product'
+                      ? 'border-primary-600 bg-primary-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Package className={`w-6 h-6 ${entityType === 'product' ? 'text-primary-600' : 'text-gray-500'}`} />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Produtos</p>
+                    <p className="text-sm text-gray-600">Análise por produto</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleEntityTypeChange('channel')}
+                  className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors ${
+                    entityType === 'channel'
+                      ? 'border-primary-600 bg-primary-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Radio className={`w-6 h-6 ${entityType === 'channel' ? 'text-primary-600' : 'text-gray-500'}`} />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Canais</p>
+                    <p className="text-sm text-gray-600">Análise por canal</p>
+                  </div>
+                </button>
+              </div>
 
-          {/* Results */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <BarChart3 className="w-5 h-5" />
-                <span>Resultados</span>
-              </h2>
+              {/* Entity Selection */}
+              {entityType && (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder={`Buscar ${entityType === 'store' ? 'loja' : entityType === 'product' ? 'produto' : 'canal'}...`}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Date Range */}
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm font-medium text-gray-700">Data inicial:</label>
+                      <input
+                        type="date"
+                        value={dateRange.start}
+                        onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                        className="border rounded px-3 py-1 text-sm text-gray-900 bg-white"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm font-medium text-gray-700">Data final:</label>
+                      <input
+                        type="date"
+                        value={dateRange.end}
+                        onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                        className="border rounded px-3 py-1 text-sm text-gray-900 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Entity List */}
+                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                    {getFilteredEntities().length > 0 ? (
+                      <div className="divide-y divide-gray-200">
+                        {getFilteredEntities().map((entity: Store | Product | Channel) => (
+                          <button
+                            key={entity.id}
+                            onClick={() => handleEntitySelect(entity.id, entity.name)}
+                            className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
+                              selectedEntityId === entity.id ? 'bg-primary-50 border-l-4 border-primary-600' : ''
+                            }`}
+                          >
+                            <p className="font-medium text-gray-900">{entity.name}</p>
+                            {'city' in entity && entity.city && (
+                              <p className="text-sm text-gray-600">{entity.city}, {entity.state}</p>
+                            )}
+                            {'category' in entity && entity.category && (
+                              <p className="text-sm text-gray-600">{entity.category}</p>
+                            )}
+                            {'type' in entity && entity.type && (
+                              <p className="text-sm text-gray-600">{entity.type}</p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>Nenhum resultado encontrado</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Detailed Analysis Panel */}
+            {selectedEntityId && entityType && (
+              <DetailedAnalysisPanel
+                entityType={entityType}
+                entityId={selectedEntityId}
+                entityName={selectedEntityName}
+                startDate={dateRange.start}
+                endDate={dateRange.end}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Query Builder */}
+            <div className="lg:col-span-1">
+              <QueryBuilder query={query} onChange={setQuery} />
+            </div>
+
+            {/* Results */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                  <BarChart3 className="w-5 h-5" />
+                  <span>Resultados</span>
+                </h2>
 
               {isExecuting && (
                 <div className="text-center py-12">

@@ -341,6 +341,32 @@ class ApiClient {
   async getStores(): Promise<{ stores: Store[] }> {
     return this.fetch('/api/meta/stores')
   }
+
+  async getProducts(params?: {
+    limit?: number
+    search?: string
+  }): Promise<{ products: Product[] }> {
+    const queryParams = new URLSearchParams()
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.search) queryParams.append('search', params.search)
+
+    return this.fetch(`/api/meta/products?${queryParams.toString()}`)
+  }
+
+  async getDetailedAnalysis(params: {
+    entity_type: 'store' | 'product' | 'channel'
+    entity_id: number
+    start_date?: string
+    end_date?: string
+  }): Promise<DetailedAnalysis> {
+    const queryParams = new URLSearchParams()
+    queryParams.append('entity_type', params.entity_type)
+    queryParams.append('entity_id', params.entity_id.toString())
+    if (params.start_date) queryParams.append('start_date', params.start_date)
+    if (params.end_date) queryParams.append('end_date', params.end_date)
+
+    return this.fetch(`/api/metrics/detailed-analysis?${queryParams.toString()}`)
+  }
 }
 
 export interface Store {
@@ -355,6 +381,45 @@ export interface Channel {
   name: string
   type: string
   description: string
+}
+
+export interface Product {
+  id: number
+  name: string
+  category: string
+}
+
+export interface DetailedAnalysis {
+  entity_type: 'store' | 'product' | 'channel'
+  entity_id: number
+  metrics: {
+    total_orders: number
+    total_revenue: number
+    avg_ticket: number
+    total_discounts: number
+    avg_production_time: number
+    avg_delivery_time: number
+  }
+  trends: Array<{
+    date: string
+    order_count: number
+    revenue: number
+    avg_ticket: number
+    avg_production_time: number
+    avg_delivery_time: number
+  }>
+  hourly_trends: Array<{
+    hour: number
+    order_count: number
+    revenue: number
+  }>
+  breakdown: Array<{
+    id: number
+    name: string
+    order_count?: number
+    quantity?: number
+    revenue: number
+  }>
 }
 
 export interface CustomerData {

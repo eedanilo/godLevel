@@ -294,6 +294,57 @@ async def get_stores(db: asyncpg.Pool = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/meta/products")
+async def get_products(
+    limit: int = 100,
+    search: Optional[str] = None,
+    db: asyncpg.Pool = Depends(get_db)
+):
+    """Retorna lista de produtos disponíveis"""
+    try:
+        async with db.acquire() as conn:
+            if search:
+                query = """
+                    SELECT DISTINCT
+                        p.id,
+                        p.name,
+                        c.name as category_name
+                    FROM products p
+                    LEFT JOIN categories c ON c.id = p.category_id
+                    WHERE p.name ILIKE $1
+                    ORDER BY p.name
+                    LIMIT $2
+                """
+                products = await conn.fetch(query, f"%{search}%", limit)
+            else:
+                query = """
+                    SELECT DISTINCT
+                        p.id,
+                        p.name,
+                        c.name as category_name
+                    FROM products p
+                    LEFT JOIN categories c ON c.id = p.category_id
+                    ORDER BY p.name
+                    LIMIT $1
+                """
+                products = await conn.fetch(query, limit)
+            
+            return {
+                "products": [
+                    {
+                        "id": int(p["id"]),
+                        "name": str(p["name"]),
+                        "category": str(p["category_name"]) if p["category_name"] else ""
+                    }
+                    for p in products
+                ]
+            }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/query")
 async def execute_query(query: QueryRequest, db: asyncpg.Pool = Depends(get_db)):
     """
@@ -1719,6 +1770,229 @@ async def get_customers(
                 })
             
             return {"customers": customers_data}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/metrics/detailed-analysis")
+async def get_detailed_analysis(
+    entity_type: str,  # 'store', 'product', 'channel'
+    entity_id: int,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: asyncpg.Pool = Depends(get_db)
+):
+    """Análise detalhada por loja, produto ou canal"""
+    try:
+        if entity_type not in ['store', 'product', 'channel']:
+            raise HTTPException(status_code=400, detail="entity_type deve ser 'store', 'product' ou 'channel'")
+        
+        async with db.acquire() as conn:
+            # Converter datas
+            current_start = start_date or '2025-05-01'
+            current_end = end_date or '2025-05-31'
+            
+            current_start_obj = datetime.strptime(current_start, '%Y-%m-%d').date()
+            current_end_obj = datetime.strptime(current_end, '%Y-%m-%d').date()
+            current_end_obj = current_end_obj + timedelta(days=1)
+            
+            # Build WHERE clause based on entity type
+            if entity_type == 'store':
+                where_condition = f"s.store_id = ${1}"
+                params = [entity_id]
+            elif entity_type == 'product':
+                where_condition = f"ps.product_id = ${1}"
+                params = [entity_id]
+            else:  # channel
+                where_condition = f"s.channel_id = ${1}"
+                params = [entity_id]
+            
+            # 1. Métricas gerais (pedidos, receita, descontos)
+            metrics_query = f"""
+                SELECT 
+                    COUNT(*)::bigint as total_orders,
+                    COALESCE(SUM(s.total_amount), 0)::numeric as total_revenue,
+                    COALESCE(AVG(s.total_amount), 0)::numeric as avg_ticket,
+                    COALESCE(SUM(s.total_discount), 0)::numeric as total_discounts,
+                    COALESCE(AVG(s.production_seconds), 0)::numeric as avg_production_time,
+                    COALESCE(AVG(s.delivery_seconds), 0)::numeric as avg_delivery_time
+                FROM sales s
+                {'JOIN product_sales ps ON ps.sale_id = s.id' if entity_type == 'product' else ''}
+                WHERE s.sale_status_desc = 'COMPLETED'
+                AND {where_condition}
+                AND s.created_at >= ${len(params) + 1}
+                AND s.created_at < ${len(params) + 2}
+            """
+            
+            # 2. Tendências diárias
+            trends_query = f"""
+                SELECT 
+                    DATE(s.created_at)::text as date,
+                    COUNT(*)::bigint as order_count,
+                    COALESCE(SUM(s.total_amount), 0)::numeric as revenue,
+                    COALESCE(AVG(s.total_amount), 0)::numeric as avg_ticket,
+                    COALESCE(AVG(s.production_seconds), 0)::numeric as avg_production_time,
+                    COALESCE(AVG(s.delivery_seconds), 0)::numeric as avg_delivery_time
+                FROM sales s
+                {'JOIN product_sales ps ON ps.sale_id = s.id' if entity_type == 'product' else ''}
+                WHERE s.sale_status_desc = 'COMPLETED'
+                AND {where_condition}
+                AND s.created_at >= ${len(params) + 1}
+                AND s.created_at < ${len(params) + 2}
+                GROUP BY DATE(s.created_at)
+                ORDER BY date
+            """
+            
+            # 3. Tendências por hora
+            hourly_trends_query = f"""
+                SELECT 
+                    EXTRACT(HOUR FROM s.created_at)::integer as hour,
+                    COUNT(*)::bigint as order_count,
+                    COALESCE(SUM(s.total_amount), 0)::numeric as revenue
+                FROM sales s
+                {'JOIN product_sales ps ON ps.sale_id = s.id' if entity_type == 'product' else ''}
+                WHERE s.sale_status_desc = 'COMPLETED'
+                AND {where_condition}
+                AND s.created_at >= ${len(params) + 1}
+                AND s.created_at < ${len(params) + 2}
+                GROUP BY EXTRACT(HOUR FROM s.created_at)
+                ORDER BY hour
+            """
+            
+            # 4. Para produtos: lojas que vendem mais
+            # Para lojas: produtos mais vendidos
+            # Para canais: lojas mais ativas
+            if entity_type == 'product':
+                breakdown_query = f"""
+                    SELECT 
+                        st.id,
+                        st.name as store_name,
+                        COUNT(*)::bigint as order_count,
+                        COALESCE(SUM(s.total_amount), 0)::numeric as revenue
+                    FROM sales s
+                    JOIN product_sales ps ON ps.sale_id = s.id
+                    JOIN stores st ON st.id = s.store_id
+                    WHERE s.sale_status_desc = 'COMPLETED'
+                    AND ps.product_id = ${1}
+                    AND s.created_at >= ${2}
+                    AND s.created_at < ${3}
+                    GROUP BY st.id, st.name
+                    ORDER BY revenue DESC
+                    LIMIT 10
+                """
+                breakdown_params = [entity_id, current_start_obj, current_end_obj]
+            elif entity_type == 'store':
+                breakdown_query = f"""
+                    SELECT 
+                        p.id,
+                        p.name as product_name,
+                        SUM(ps.quantity)::numeric as total_quantity,
+                        COALESCE(SUM(ps.total_price), 0)::numeric as revenue
+                    FROM sales s
+                    JOIN product_sales ps ON ps.sale_id = s.id
+                    JOIN products p ON p.id = ps.product_id
+                    WHERE s.sale_status_desc = 'COMPLETED'
+                    AND s.store_id = ${1}
+                    AND s.created_at >= ${2}
+                    AND s.created_at < ${3}
+                    GROUP BY p.id, p.name
+                    ORDER BY revenue DESC
+                    LIMIT 10
+                """
+                breakdown_params = [entity_id, current_start_obj, current_end_obj]
+            else:  # channel
+                breakdown_query = f"""
+                    SELECT 
+                        st.id,
+                        st.name as store_name,
+                        COUNT(*)::bigint as order_count,
+                        COALESCE(SUM(s.total_amount), 0)::numeric as revenue
+                    FROM sales s
+                    JOIN stores st ON st.id = s.store_id
+                    WHERE s.sale_status_desc = 'COMPLETED'
+                    AND s.channel_id = ${1}
+                    AND s.created_at >= ${2}
+                    AND s.created_at < ${3}
+                    GROUP BY st.id, st.name
+                    ORDER BY revenue DESC
+                    LIMIT 10
+                """
+                breakdown_params = [entity_id, current_start_obj, current_end_obj]
+            
+            # Execute all queries
+            all_query_params = params + [current_start_obj, current_end_obj]
+            
+            metrics_result = await conn.fetchrow(metrics_query, *all_query_params)
+            trends_result = await conn.fetch(trends_query, *all_query_params)
+            hourly_trends_result = await conn.fetch(hourly_trends_query, *all_query_params)
+            breakdown_result = await conn.fetch(breakdown_query, *breakdown_params)
+            
+            # Format metrics
+            metrics_data = {
+                'total_orders': int(metrics_result['total_orders']) if metrics_result['total_orders'] else 0,
+                'total_revenue': float(metrics_result['total_revenue']) if metrics_result['total_revenue'] else 0.0,
+                'avg_ticket': float(metrics_result['avg_ticket']) if metrics_result['avg_ticket'] else 0.0,
+                'total_discounts': float(metrics_result['total_discounts']) if metrics_result['total_discounts'] else 0.0,
+                'avg_production_time': float(metrics_result['avg_production_time']) if metrics_result['avg_production_time'] else 0.0,
+                'avg_delivery_time': float(metrics_result['avg_delivery_time']) if metrics_result['avg_delivery_time'] else 0.0,
+            }
+            
+            # Format trends
+            trends_data = []
+            for r in trends_result:
+                trends_data.append({
+                    'date': str(r['date']) if r['date'] else '',
+                    'order_count': int(r['order_count']) if r['order_count'] else 0,
+                    'revenue': float(r['revenue']) if r['revenue'] else 0.0,
+                    'avg_ticket': float(r['avg_ticket']) if r['avg_ticket'] else 0.0,
+                    'avg_production_time': float(r['avg_production_time']) if r['avg_production_time'] else 0.0,
+                    'avg_delivery_time': float(r['avg_delivery_time']) if r['avg_delivery_time'] else 0.0,
+                })
+            
+            # Format hourly trends
+            hourly_data = []
+            for r in hourly_trends_result:
+                hourly_data.append({
+                    'hour': int(r['hour']) if r['hour'] is not None else 0,
+                    'order_count': int(r['order_count']) if r['order_count'] else 0,
+                    'revenue': float(r['revenue']) if r['revenue'] else 0.0,
+                })
+            
+            # Format breakdown
+            breakdown_data = []
+            for r in breakdown_result:
+                if entity_type == 'product':
+                    breakdown_data.append({
+                        'id': int(r['id']) if r['id'] else 0,
+                        'name': str(r['store_name']) if r['store_name'] else '',
+                        'order_count': int(r['order_count']) if r['order_count'] else 0,
+                        'revenue': float(r['revenue']) if r['revenue'] else 0.0,
+                    })
+                elif entity_type == 'store':
+                    breakdown_data.append({
+                        'id': int(r['id']) if r['id'] else 0,
+                        'name': str(r['product_name']) if r['product_name'] else '',
+                        'quantity': float(r['total_quantity']) if r['total_quantity'] else 0.0,
+                        'revenue': float(r['revenue']) if r['revenue'] else 0.0,
+                    })
+                else:  # channel
+                    breakdown_data.append({
+                        'id': int(r['id']) if r['id'] else 0,
+                        'name': str(r['store_name']) if r['store_name'] else '',
+                        'order_count': int(r['order_count']) if r['order_count'] else 0,
+                        'revenue': float(r['revenue']) if r['revenue'] else 0.0,
+                    })
+            
+            return {
+                'entity_type': entity_type,
+                'entity_id': entity_id,
+                'metrics': metrics_data,
+                'trends': trends_data,
+                'hourly_trends': hourly_data,
+                'breakdown': breakdown_data,
+            }
     except Exception as e:
         import traceback
         traceback.print_exc()
