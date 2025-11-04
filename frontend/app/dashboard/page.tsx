@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -15,11 +16,15 @@ import InsightsPanel from '@/components/InsightsPanel'
 import CustomersPanel from '@/components/CustomersPanel'
 import StoreSelector from '@/components/StoreSelector'
 import Tooltip from '@/components/Tooltip'
-import ProtectedRoute from '@/components/ProtectedRoute'
-import { Calendar, TrendingUp, Package, Store, Clock } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { useAuth } from '@/contexts/AuthContext'
+
+const ProtectedRoute = dynamic(() => import('@/components/ProtectedRoute'), { ssr: false })
+import { Calendar, TrendingUp, Package, Store, Clock, User, LogOut } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 export default function DashboardPage() {
+  const { user, logout } = useAuth()
   const searchParams = useSearchParams()
   const view = searchParams.get('view') || 'overview'
   
