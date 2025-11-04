@@ -106,29 +106,6 @@ export default function ExplorePage() {
     setSelectedEntityName(name)
   }
 
-  const getFilteredEntities = () => {
-    if (entityType === 'store') {
-      const stores = storesData?.stores || []
-      if (!searchTerm) return stores
-      return stores.filter(store => 
-        store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        store.city.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-    if (entityType === 'product') {
-      return productsData?.products || []
-    }
-    if (entityType === 'channel') {
-      const channels = channelsData?.channels || []
-      if (!searchTerm) return channels
-      return channels.filter(channel => 
-        channel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        channel.type.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-    return []
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -286,9 +263,26 @@ export default function ExplorePage() {
 
                   {/* Entity List */}
                   <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                    {getFilteredEntities().length > 0 ? (
-                      <div className="divide-y divide-gray-200">
-                        {getFilteredEntities().map((entity: Store | Product | Channel) => (
+                    {(() => {
+                      let entities: (Store | Product | Channel)[] = []
+                      if (entityType === 'store') {
+                        const stores = storesData?.stores || []
+                        entities = !searchTerm ? stores : stores.filter(store => 
+                          store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          store.city.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                      } else if (entityType === 'product') {
+                        entities = productsData?.products || []
+                      } else if (entityType === 'channel') {
+                        const channels = channelsData?.channels || []
+                        entities = !searchTerm ? channels : channels.filter(channel => 
+                          channel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          channel.type.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                      }
+                      return entities.length > 0 ? (
+                        <div className="divide-y divide-gray-200">
+                          {entities.map((entity: Store | Product | Channel) => (
                           <button
                             key={entity.id}
                             onClick={() => handleEntitySelect(entity.id, entity.name)}
@@ -308,12 +302,13 @@ export default function ExplorePage() {
                             )}
                           </button>
                         ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <p>Nenhum resultado encontrado</p>
-                      </div>
-                    )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>Nenhum resultado encontrado</p>
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               )}
