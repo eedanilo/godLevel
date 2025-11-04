@@ -100,9 +100,9 @@ class MetricsRepository(BaseRepository):
         # This ensures we get correct ordering even if SQL ORDER BY doesn't work properly
         query = f"""
             SELECT 
-                p.id,
-                p.name as product_name,
-                c.name as category_name,
+                MIN(p.id) as id,
+                TRIM(p.name) as product_name,
+                MAX(c.name) as category_name,
                 SUM(ps.quantity)::numeric as total_quantity,
                 SUM(ps.total_price)::numeric as total_revenue,
                 COUNT(DISTINCT ps.sale_id) as order_count
@@ -113,7 +113,7 @@ class MetricsRepository(BaseRepository):
             WHERE s.sale_status_desc = 'COMPLETED'
             AND s.created_at >= $1::date
             AND s.created_at < $2::date
-            GROUP BY p.id, p.name, c.name
+            GROUP BY TRIM(p.name)
         """
         
         logger.info(f"Executing query with params: start_date={start_date}, end_date={end_date}, order_by={order_by}")

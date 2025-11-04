@@ -782,9 +782,9 @@ async def get_top_products(
             # Query without LIMIT first, then order in Python and limit
             query = f"""
                 SELECT 
-                    p.id,
-                    p.name as product_name,
-                    c.name as category_name,
+                    MIN(p.id) as id,
+                    TRIM(p.name) as product_name,
+                    MAX(c.name) as category_name,
                     SUM(ps.quantity)::numeric as total_quantity,
                     SUM(ps.total_price)::numeric as total_revenue,
                     COUNT(DISTINCT ps.sale_id) as order_count
@@ -793,7 +793,7 @@ async def get_top_products(
                 JOIN products p ON p.id = ps.product_id
                 LEFT JOIN categories c ON c.id = p.category_id
                 WHERE {where_sql}
-                GROUP BY p.id, p.name, c.name
+                GROUP BY TRIM(p.name)
             """
             
             if params_list:
@@ -1290,8 +1290,8 @@ async def get_insights(
             # 2. Análise de Produtos - mudanças relevantes
             query_products_current = f"""
                 SELECT 
-                    p.id,
-                    p.name as product_name,
+                    MIN(p.id) as id,
+                    TRIM(p.name) as product_name,
                     SUM(ps.quantity) as total_quantity,
                     COUNT(DISTINCT ps.sale_id) as order_count
                 FROM product_sales ps
@@ -1300,14 +1300,14 @@ async def get_insights(
                 WHERE s.sale_status_desc = 'COMPLETED'
                 AND s.created_at >= ${1}
                 AND s.created_at < ${2}
-                GROUP BY p.id, p.name
+                GROUP BY TRIM(p.name)
                 ORDER BY total_quantity DESC
                 LIMIT 50
             """
             query_products_previous = f"""
                 SELECT 
-                    p.id,
-                    p.name as product_name,
+                    MIN(p.id) as id,
+                    TRIM(p.name) as product_name,
                     SUM(ps.quantity) as total_quantity,
                     COUNT(DISTINCT ps.sale_id) as order_count
                 FROM product_sales ps
@@ -1316,7 +1316,7 @@ async def get_insights(
                 WHERE s.sale_status_desc = 'COMPLETED'
                 AND s.created_at >= ${1}
                 AND s.created_at < ${2}
-                GROUP BY p.id, p.name
+                GROUP BY TRIM(p.name)
             """
             products_current = await conn.fetch(query_products_current, current_start_obj, current_end_obj)
             products_previous = await conn.fetch(query_products_previous, previous_start_obj, previous_end_obj)
@@ -1377,11 +1377,11 @@ async def get_insights(
                     # Buscar produtos mais vendidos nesse dia/hora/canal
                     product_query = f"""
                         SELECT 
-                            p.id,
-                            p.name as product_name,
+                            MIN(p.id) as id,
+                            TRIM(p.name) as product_name,
                             SUM(ps.quantity) as total_quantity,
                             SUM(ps.total_price) as total_revenue,
-                            ch.name as channel_name
+                            MAX(ch.name) as channel_name
                         FROM product_sales ps
                         JOIN sales s ON s.id = ps.sale_id
                         JOIN products p ON p.id = ps.product_id
@@ -1391,7 +1391,7 @@ async def get_insights(
                         AND EXTRACT(DOW FROM s.created_at) = ${3}
                         AND EXTRACT(HOUR FROM s.created_at) = ${4}
                         AND (LOWER(ch.name) LIKE '%ifood%' OR LOWER(ch.name) LIKE '%delivery%' OR ch.type = 'D')
-                        GROUP BY p.id, p.name, ch.name
+                        GROUP BY TRIM(p.name)
                         ORDER BY total_quantity DESC
                         LIMIT 1
                     """
@@ -1802,7 +1802,7 @@ async def get_customers(
                 top_products_per_customer AS (
                     SELECT 
                         s.customer_id,
-                        p.name as product_name,
+                        TRIM(p.name) as product_name,
                         SUM(ps.quantity) as quantity,
                         ROW_NUMBER() OVER (PARTITION BY s.customer_id ORDER BY SUM(ps.quantity) DESC) as rn
                     FROM sales s
@@ -1810,7 +1810,7 @@ async def get_customers(
                     JOIN products p ON p.id = ps.product_id
                     WHERE {period_where_sql_with_status}
                     AND s.customer_id IS NOT NULL
-                    GROUP BY s.customer_id, p.name
+                    GROUP BY s.customer_id, TRIM(p.name)
                 ),
                 customer_favorite_day_filtered AS (
                     SELECT customer_id, favorite_day_of_week
