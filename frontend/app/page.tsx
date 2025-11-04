@@ -45,7 +45,7 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           <Link href="/dashboard" className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
             <LayoutDashboard className="w-12 h-12 text-primary-600 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Dashboards</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Dashboard</h3>
             <p className="text-gray-600">
               Visualize métricas importantes de forma clara e intuitiva
             </p>

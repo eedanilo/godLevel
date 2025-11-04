@@ -1964,8 +1964,8 @@ async def get_detailed_analysis(
             elif entity_type == 'store':
                 breakdown_query = f"""
                     SELECT 
-                        p.id,
-                        p.name as product_name,
+                        MIN(p.id) as id,
+                        TRIM(p.name) as product_name,
                         SUM(ps.quantity)::numeric as total_quantity,
                         COALESCE(SUM(ps.total_price), 0)::numeric as revenue
                     FROM sales s
@@ -1975,7 +1975,7 @@ async def get_detailed_analysis(
                     AND s.store_id = ${1}
                     AND s.created_at >= ${2}
                     AND s.created_at < ${3}
-                    GROUP BY p.id, p.name
+                    GROUP BY TRIM(p.name)
                     HAVING SUM(ps.quantity) > 0
                     ORDER BY revenue DESC, total_quantity DESC
                     LIMIT 20

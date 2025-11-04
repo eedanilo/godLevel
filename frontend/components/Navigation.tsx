@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { Home, LayoutDashboard, BarChart3, LogOut, User, Menu, X } from 'lucide-react'
+import { Home, LayoutDashboard, BarChart3, LogOut, User, Menu, X, Package, Store, Users } from 'lucide-react'
 import { useState } from 'react'
 
 // Mapeamento de roles para labels em português
@@ -21,6 +21,7 @@ const getRoleLabel = (role: string, roleLabel?: string): string => {
 
 export default function Navigation() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { user, logout, isAuthenticated } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -42,6 +43,21 @@ export default function Navigation() {
     if (path === '/') {
       return pathname === '/'
     }
+    // Para paths com query parameters, verificar se o pathname corresponde e se os query params estão corretos
+    if (path.includes('?')) {
+      const [basePath, queryString] = path.split('?')
+      if (pathname === basePath) {
+        // Verificar se os query params estão presentes na URL atual
+        const expectedParams = new URLSearchParams(queryString)
+        for (const [key, value] of expectedParams.entries()) {
+          if (searchParams?.get(key) !== value) {
+            return false
+          }
+        }
+        return true
+      }
+      return false
+    }
     return pathname?.startsWith(path)
   }
 
@@ -49,6 +65,9 @@ export default function Navigation() {
     { href: '/', label: 'Início', icon: Home },
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/explore', label: 'Explorar Dados', icon: BarChart3 },
+    { href: '/dashboard?view=products', label: 'Produtos', icon: Package },
+    { href: '/dashboard?view=stores', label: 'Lojas', icon: Store },
+    { href: '/dashboard?view=customers', label: 'Clientes', icon: Users },
   ]
 
   return (
