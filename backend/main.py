@@ -55,6 +55,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Importar rotas de autenticação
+from app.api.routes import auth
+app.include_router(auth.router)
+
 # CORS - Permitir requisições do frontend (local e Vercel)
 app.add_middleware(
     CORSMiddleware,

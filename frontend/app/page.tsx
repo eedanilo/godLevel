@@ -1,10 +1,33 @@
 'use client'
 
 import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { LayoutDashboard, BarChart3, TrendingUp, Package, Users } from 'lucide-react'
 
 export default function Home() {
+  const { isAuthenticated } = useAuth()
+
+  // Se não estiver autenticado, redirecionar para login
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">God Level Analytics</h1>
+          <p className="text-gray-600 mb-6">Faça login para acessar o sistema</p>
+          <Link
+            href="/login"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Ir para Login
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
+    <ProtectedRoute>
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">

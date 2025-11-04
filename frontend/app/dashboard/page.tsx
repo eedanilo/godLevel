@@ -15,12 +15,15 @@ import InsightsPanel from '@/components/InsightsPanel'
 import CustomersPanel from '@/components/CustomersPanel'
 import StoreSelector from '@/components/StoreSelector'
 import Tooltip from '@/components/Tooltip'
-import { Calendar, TrendingUp, Package, Store, Clock } from 'lucide-react'
+import ProtectedRoute from '@/components/ProtectedRoute'
+import { useAuth } from '@/contexts/AuthContext'
+import { Calendar, TrendingUp, Package, Store, Clock, LogOut, User } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 export default function DashboardPage() {
   const searchParams = useSearchParams()
   const view = searchParams.get('view') || 'overview'
+  const { user, logout } = useAuth()
   
   // Data padrão: Maio 2025 (onde estão os dados do banco)
   const [dateRange, setDateRange] = useState({
@@ -156,19 +159,43 @@ export default function DashboardPage() {
     setDateRange({ start, end })
   }
 
+  const handleLogout = async () => {
+    await logout()
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              <Tooltip 
-                content="Painel principal de análise de vendas. Visualize métricas gerais, produtos mais vendidos, horários de pico e tendências diárias. Use os filtros de data para analisar períodos específicos."
-                icon={true}
-                position="bottom"
-              />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-2">
+                <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+                <Tooltip 
+                  content="Painel principal de análise de vendas. Visualize métricas gerais, produtos mais vendidos, horários de pico e tendências diárias. Use os filtros de data para analisar períodos específicos."
+                  icon={true}
+                  position="bottom"
+                />
+              </div>
+              {user && (
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2 text-sm text-gray-700">
+                    <User className="w-4 h-4" />
+                    <span className="font-medium">{user.name}</span>
+                    <span className="text-gray-500">({user.role})</span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center space-x-2 px-3 py-1.5 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                    title="Sair"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sair</span>
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -336,7 +363,8 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
-    </div>
+      </div>
+    </ProtectedRoute>
   )
 }
 
