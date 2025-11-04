@@ -3,9 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { QueryClientProvider } from './providers'
 import { AuthProvider } from '@/contexts/AuthContext'
-import dynamic from 'next/dynamic'
-
-const Navigation = dynamic(() => import('@/components/Navigation'), { ssr: false })
+import Navigation from '@/components/Navigation'
 
 const inter = Inter({ subsets: ['latin'] })
 
