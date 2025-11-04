@@ -1,4 +1,4 @@
-# 🍽️ Restaurant Analytics Platform
+# 🍽️ God Level Analytics - Restaurant Analytics Platform
 
 Plataforma de Analytics para Restaurantes - Uma solução completa de Business Intelligence customizável para restaurantes, permitindo análise de vendas, produtos, clientes e operações através de múltiplos canais.
 
@@ -8,12 +8,12 @@ Esta aplicação foi desenvolvida para resolver o desafio de fornecer analytics 
 
 ### ✨ Funcionalidades Principais
 
-- **Dashboard Executivo**: Visualização de faturamento, pedidos, ticket médio e descontos
-- **Top Produtos Mais Vendidos**: Análise de produtos por quantidade ou receita, com filtros por período e canal
+- **Dashboard Executivo**: Visualização de faturamento, pedidos, ticket médio, descontos e participação por canal
+- **Top Produtos Mais Vendidos**: Análise de produtos por quantidade ou receita, com filtros por período e canal, com drill-down interativo
 - **Horários de Pico**: Identificação dos períodos de maior movimento
-- **Performance por Loja**: Comparação de métricas entre lojas com ordenação customizável
+- **Performance por Loja**: Comparação de métricas entre lojas com ordenação customizável (até 5 lojas)
 - **Análise de Clientes**: Segmentação de clientes, produtos favoritos, dias/horários preferidos e detecção de risco de churn
-- **Insights Automáticos**: Geração automática de insights baseados em anomalias e comparações
+- **Insights Automáticos**: Geração automática de insights baseados em anomalias e comparações, respondendo perguntas específicas de negócio
 - **Explorador de Dados Avançado**: 
   - Perfilamento de dados
   - Análise de correlações
@@ -21,27 +21,36 @@ Esta aplicação foi desenvolvida para resolver o desafio de fornecer analytics 
   - Detecção de anomalias
   - Análise de afinidade de produtos (Market Basket)
   - Previsão de tendências
-- **Query Builder**: Interface visual para criar queries customizadas sem escrever SQL
+- **Query Builder Visual**: Interface visual para criar queries customizadas sem escrever SQL, com exemplos pré-configurados
+- **Análise Detalhada**: Visualização detalhada de métricas, tendências diárias/horárias e breakdowns por loja, produto ou canal
 - **Filtros por Canal**: Visualização de dados por canais de venda (iFood, Rappi, Uber Eats, etc.)
+- **Autenticação**: Sistema de autenticação mock com diferentes níveis de acesso (Admin, Proprietária, Gerente)
+- **Exportação de Dados**: Exportação de resultados em CSV
 
 ## 🛠️ Tecnologias
 
 ### Backend
 - **Python 3.10+**
-- **FastAPI**: Framework web assíncrono
-- **asyncpg**: Cliente PostgreSQL assíncrono
+- **FastAPI**: Framework web assíncrono de alta performance
+- **asyncpg**: Cliente PostgreSQL assíncrono com connection pooling
 - **PostgreSQL**: Banco de dados transacional
+- **Pydantic**: Validação de dados e schemas
+- **Arquitetura em Camadas**: Separação clara entre rotas, serviços e repositórios
 
 ### Frontend
 - **Next.js 14**: Framework React com App Router
-- **TypeScript**: Tipagem estática
-- **Tailwind CSS**: Estilização utility-first
-- **Recharts**: Biblioteca de gráficos
-- **@tanstack/react-query**: Gerenciamento de estado do servidor
+- **TypeScript**: Tipagem estática para maior segurança
+- **Tailwind CSS**: Estilização utility-first com design moderno
+- **Recharts**: Biblioteca de gráficos interativos
+- **@tanstack/react-query**: Gerenciamento de estado do servidor com cache
+- **Lucide React**: Ícones modernos e consistentes
+- **date-fns**: Manipulação de datas
 
 ### Infraestrutura
 - **Docker & Docker Compose**: Containerização e orquestração
 - **PostgreSQL**: Banco de dados (via Docker)
+- **Vercel**: Deploy do frontend (opcional)
+- **Connection Pooling**: Otimização de conexões com o banco
 
 ## 📦 Pré-requisitos
 
@@ -109,7 +118,7 @@ source venv/bin/activate  # No Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Configurar variáveis de ambiente
-export DATABASE_URL="postgresql://challenge:challenge@127.0.0.1:5432/challenge_db"
+export DATABASE_URL="postgresql://challenge:challenge_2024@127.0.0.1:5432/challenge_db"
 export DATABASE_HOST="127.0.0.1"
 
 # Executar aplicação
@@ -137,21 +146,40 @@ Após iniciar os serviços:
 - **Documentação da API**: http://localhost:8000/docs
 - **PGAdmin** (se habilitado): http://localhost:5050
 
-### 4. Usar a Aplicação
+### 4. Credenciais de Acesso
 
-1. **Dashboard Principal**: Acesse http://localhost:3000
-2. **Explorar Métricas**: Use os filtros de data e canal no topo
-3. **Visualizar Produtos**: Clique em "Top Produtos" para ver produtos mais vendidos
-4. **Análise de Lojas**: Acesse "Performance por Loja" para comparar lojas
-5. **Insights**: Veja insights automáticos na aba "Insights & Tendências"
-6. **Explorar Dados**: Use o "Explorador de Dados" para criar queries customizadas
+O sistema possui três usuários de demonstração:
+
+1. **Admin** (Acesso completo)
+   - Email: `admin@restaurante.com`
+   - Senha: `admin123`
+
+2. **Proprietária** (Acesso completo)
+   - Email: `proprietaria@restaurante.com`
+   - Senha: `proprietaria123`
+
+3. **Gerente** (Acesso limitado à loja específica)
+   - Email: `gerente@restaurante.com`
+   - Senha: `gerente123`
+
+### 5. Usar a Aplicação
+
+1. **Login**: Acesse http://localhost:3000 e faça login com uma das credenciais acima
+2. **Dashboard Principal**: Visualize métricas gerais, top produtos e performance de lojas
+3. **Explorar Métricas**: Use os filtros de data e canal no topo
+4. **Visualizar Produtos**: Clique em "Top Produtos" para ver produtos mais vendidos (com drill-down)
+5. **Análise de Lojas**: Acesse "Comparar Lojas" para comparar até 5 lojas
+6. **Análise de Clientes**: Veja segmentação de clientes e risco de churn
+7. **Insights**: Veja insights automáticos na aba "Insights & Tendências"
+8. **Explorar Dados**: Use o "Query Builder" para criar queries customizadas com exemplos pré-configurados
+9. **Análise Avançada**: Acesse "Análise Avançada" para análises estatísticas complexas
 
 ## 📊 Dados de Teste
 
 O projeto inclui um gerador de dados que cria:
 
 - **500.000+ vendas** completadas
-- **6 meses** de histórico
+- **6 meses** de histórico (maio a outubro de 2025)
 - **50 lojas** distribuídas
 - **6 canais** de venda diferentes:
   - Presencial
@@ -169,43 +197,88 @@ O projeto inclui um gerador de dados que cria:
 nola-god-level/
 ├── backend/                 # API FastAPI
 │   ├── app/
-│   │   ├── api/            # Rotas da API
-│   │   ├── core/           # Configurações, cache, database
-│   │   ├── repositories/   # Camada de acesso a dados
-│   │   ├── services/       # Lógica de negócio
-│   │   ├── models/         # Schemas Pydantic
-│   │   ├── middleware/    # Middleware (rate limiting, logging)
-│   │   └── utils/          # Utilidades (validação, métricas)
-│   ├── main.py             # Arquivo principal (modo legacy)
-│   ├── main_refactored.py  # Arquivo principal (arquitetura em camadas)
-│   ├── requirements.txt    # Dependências Python
-│   └── Dockerfile          # Imagem Docker do backend
+│   │   ├── api/
+│   │   │   └── routes/      # Rotas da API organizadas
+│   │   │       ├── auth.py           # Autenticação
+│   │   │       ├── health.py         # Health checks
+│   │   │       ├── metrics.py        # Métricas principais
+│   │   │       └── explore_routes.py # Análise avançada
+│   │   ├── core/            # Configurações centrais
+│   │   │   ├── config.py      # Configurações da aplicação
+│   │   │   ├── database.py   # Pool de conexões
+│   │   │   ├── cache.py      # Sistema de cache
+│   │   │   ├── logging_config.py # Configuração de logs
+│   │   │   └── migrations.py # Migrações e índices
+│   │   ├── repositories/    # Camada de acesso a dados
+│   │   │   ├── base.py
+│   │   │   ├── metrics_repository.py
+│   │   │   ├── sales_repository.py
+│   │   │   └── explore_repository.py
+│   │   ├── services/        # Lógica de negócio
+│   │   │   ├── metrics_service.py
+│   │   │   └── explore_service.py
+│   │   ├── models/          # Schemas Pydantic
+│   │   │   └── schemas.py
+│   │   ├── middleware/      # Middleware customizado
+│   │   │   ├── rate_limit.py
+│   │   │   └── logging_middleware.py
+│   │   └── utils/           # Utilidades
+│   │       ├── query_validation.py
+│   │       ├── metrics.py
+│   │       └── serializers.py
+│   ├── main.py              # Arquivo principal (legacy)
+│   ├── main_refactored.py   # Arquivo principal (arquitetura em camadas)
+│   ├── requirements.txt     # Dependências Python
+│   ├── Dockerfile           # Imagem Docker do backend
+│   └── tests/               # Testes automatizados
 │
-├── frontend/               # Aplicação Next.js
-│   ├── app/                # App Router do Next.js
-│   │   ├── dashboard/      # Página de dashboard
-│   │   ├── explore/        # Página de exploração de dados
-│   │   └── explore-enhanced/  # Página de análise avançada
-│   ├── components/         # Componentes React
-│   ├── lib/                # Utilitários (API client, utils)
-│   ├── package.json        # Dependências Node.js
-│   └── Dockerfile          # Imagem Docker do frontend
+├── frontend/                # Aplicação Next.js
+│   ├── app/                 # App Router do Next.js
+│   │   ├── dashboard/       # Página de dashboard
+│   │   ├── explore/         # Query Builder e análise detalhada
+│   │   ├── explore-enhanced/ # Análise avançada (tabs)
+│   │   ├── login/           # Página de login
+│   │   └── page.tsx         # Landing page
+│   ├── components/          # Componentes React
+│   │   ├── RevenueCard.tsx
+│   │   ├── TopProductsChart.tsx
+│   │   ├── StorePerformanceTable.tsx
+│   │   ├── CustomersPanel.tsx
+│   │   ├── InsightsPanel.tsx
+│   │   ├── QueryBuilder.tsx
+│   │   ├── DetailedAnalysisPanel.tsx
+│   │   ├── Navigation.tsx
+│   │   └── explore/         # Componentes de análise avançada
+│   ├── contexts/           # Contextos React
+│   │   └── AuthContext.tsx
+│   ├── lib/                 # Utilitários
+│   │   ├── api.ts           # Cliente API
+│   │   ├── auth.ts          # Utilitários de autenticação
+│   │   └── utils.ts         # Funções utilitárias
+│   ├── package.json         # Dependências Node.js
+│   └── Dockerfile           # Imagem Docker do frontend
 │
-├── docker-compose.yml      # Orquestração dos containers
-├── database-schema.sql     # Schema do banco de dados
-├── start.sh                # Script de inicialização
-├── SOLUCAO.md              # Documentação da solução
-├── ARQUITETURA.md          # Decisões arquiteturais
-└── README.md               # Este arquivo
+├── docker-compose.yml       # Orquestração dos containers
+├── database-schema.sql      # Schema do banco de dados
+├── generate_data.py         # Gerador de dados de teste
+├── start.sh                 # Script de inicialização
+├── SOLUCAO.md               # Documentação da solução
+├── ARQUITETURA.md           # Decisões arquiteturais
+├── DEPLOY.md                # Guia de deploy
+└── README.md                # Este arquivo
 ```
 
 ## 🔧 Configuração
 
 ### Variáveis de Ambiente
 
-**Backend** (`backend/main.py`):
-- `DATABASE_URL`: URL de conexão do PostgreSQL (padrão: `postgresql://challenge:challenge@127.0.0.1:5432/challenge_db`)
+**Backend** (`backend/`):
+- `DATABASE_URL`: URL de conexão do PostgreSQL (padrão: `postgresql://challenge:challenge_2024@127.0.0.1:5432/challenge_db`)
 - `DATABASE_HOST`: Host do banco (padrão: `127.0.0.1`)
+- `ENVIRONMENT`: Ambiente de execução (`development` ou `production`)
+- `CORS_ORIGINS`: Origens permitidas para CORS
+- `RATE_LIMIT_ENABLED`: Habilitar rate limiting (padrão: `true`)
+- `RATE_LIMIT_PER_MINUTE`: Limite de requisições por minuto (padrão: `100`)
 
 **Frontend** (`frontend/.env.local`):
 - `NEXT_PUBLIC_API_URL`: URL da API backend (padrão: `http://localhost:8000`)
@@ -217,44 +290,43 @@ nola-god-level/
 - **PostgreSQL**: 5432
 - **PGAdmin** (opcional): 5050
 
-## 📖 Uso da Aplicação
+## 📖 Funcionalidades Detalhadas
 
 ### Dashboard
 
-1. **Selecionar Período**: Use os campos de data no topo para filtrar por período
-2. **Filtrar por Canal**: Selecione um ou mais canais de venda
-3. **Visualizar Métricas**: Veja faturamento total, pedidos, ticket médio e descontos
-4. **Analisar Produtos**: Visualize top produtos ordenados por quantidade ou receita
-5. **Comparar Lojas**: Veja performance de todas as lojas com ordenação customizável
+- **Métricas Principais**: Faturamento total, total de pedidos, ticket médio, descontos aplicados
+- **Participação por Canal**: Gráfico de pizza mostrando a participação de cada canal no faturamento
+- **Top Produtos**: Gráfico de barras interativo com drill-down para análise detalhada
+- **Performance de Lojas**: Tabela com ordenação customizável por qualquer coluna
+- **Análise de Clientes**: Painel completo com filtros e ordenação
+- **Filtros Dinâmicos**: Filtro por período (data inicial e final) e por canal de venda
 
-### Análise de Clientes
+### Query Builder
 
-1. Acesse "Clientes" no menu
-2. Use os filtros:
-   - Produto favorito
-   - Dia preferido
-   - Hora preferida
-   - Risco de churn
-3. Ordene por qualquer coluna clicando nos headers
-
-### Explorador de Dados
-
-1. Acesse "Explorar Dados"
-2. Selecione dimensões (campos para agrupar)
-3. Selecione métricas (cálculos e agregações)
-4. Adicione filtros opcionais
-5. Execute a query e visualize os resultados
+- **Interface Visual**: Crie queries sem escrever SQL
+- **Exemplos Pré-configurados**: 5 exemplos de queries funcionais para começar rapidamente
+- **Campos Disponíveis**: Dimensões (campos para agrupar) e métricas (cálculos e agregações)
+- **Filtros Customizados**: Adicione filtros com diferentes operadores (igual, maior que, contém, etc.)
+- **Agrupamento e Ordenação**: Agrupe por campos e ordene por aliases ou campos
+- **Exportação**: Exporte os resultados em CSV
 
 ### Análise Avançada
 
-1. Acesse "Análise Avançada" (ou `/explore-enhanced`)
-2. Explore as diferentes abas:
-   - **Perfilamento**: Estatísticas descritivas dos dados
-   - **Correlações**: Relações entre variáveis
-   - **Cohortes**: Análise de retenção de clientes
-   - **Anomalias**: Detecção de padrões incomuns
-   - **Afinidade**: Produtos frequentemente comprados juntos
-   - **Previsão**: Tendências futuras baseadas em dados históricos
+1. **Perfilamento de Dados**: Estatísticas descritivas (min, max, média, mediana, quartis, desvio padrão)
+2. **Análise de Correlações**: Relações entre variáveis (desconto vs receita, dia/hora vs vendas)
+3. **Análise de Cohortes**: Retenção de clientes por mês de aquisição
+4. **Detecção de Anomalias**: Identificação de padrões incomuns usando análise estatística
+5. **Análise de Afinidade**: Market Basket Analysis para identificar produtos frequentemente comprados juntos
+6. **Previsão de Tendências**: Previsão de receita, pedidos e ticket médio usando regressão linear
+
+### Autenticação e Autorização
+
+- **Sistema Mock**: Autenticação mock para demonstração
+- **Níveis de Acesso**:
+  - **Admin**: Acesso completo a todos os dados
+  - **Proprietária**: Acesso completo a todos os dados
+  - **Gerente**: Acesso limitado aos dados da loja específica
+- **Proteção de Rotas**: Rotas protegidas com verificação de autenticação
 
 ## 🐛 Troubleshooting
 
@@ -276,15 +348,16 @@ docker-compose restart postgres
 
 **Solução:**
 - Verifique se a geração de dados foi concluída: `docker-compose logs data-generator`
-- Confirme que as datas selecionadas estão no período dos dados gerados (padrão: maio 2025)
+- Confirme que as datas selecionadas estão no período dos dados gerados (padrão: maio a outubro de 2025)
 - Verifique se o backend está conectado ao banco correto (verificar logs)
+- Certifique-se de que está logado com uma conta válida
 
 ### Problema: Frontend não carrega
 
 **Solução:**
 ```bash
 # Verificar se o backend está rodando
-curl http://localhost:8000/health
+curl http://localhost:8000/api/health
 
 # Ver logs do frontend
 docker-compose logs frontend
@@ -298,11 +371,41 @@ docker-compose up -d --build frontend
 **Solução:**
 - Altere as portas no `docker-compose.yml` ou pare o serviço que está usando a porta
 
+### Problema: Queries de exemplo não funcionam
+
+**Solução:**
+- Verifique se o backend está na versão mais recente (ORDER BY com aliases foi corrigido)
+- Certifique-se de que as datas estão no período correto
+- Verifique os logs do backend para erros específicos
+
+## 🚀 Deploy
+
+### Frontend (Vercel)
+
+O frontend está configurado para deploy no Vercel:
+
+1. Conecte o repositório ao Vercel
+2. Configure as variáveis de ambiente:
+   - `NEXT_PUBLIC_API_URL`: URL do backend em produção
+3. Deploy automático via GitHub
+
+### Backend
+
+O backend pode ser deployado em qualquer plataforma que suporte Python/FastAPI:
+
+- **Opções**: Railway, Render, Heroku, AWS, Google Cloud, Azure
+- **Requisitos**: PostgreSQL como banco de dados
+- **Variáveis de Ambiente**: Configure `DATABASE_URL` e outras variáveis necessárias
+
+Veja mais detalhes em [DEPLOY.md](./DEPLOY.md)
+
 ## 📚 Documentação Adicional
 
 - [SOLUCAO.md](./SOLUCAO.md): Documentação completa da solução
 - [ARQUITETURA.md](./ARQUITETURA.md): Decisões arquiteturais e design
 - [QUICKSTART.md](./QUICKSTART.md): Guia rápido de início
+- [DEPLOY.md](./DEPLOY.md): Guia de deploy
+- [AVALIACAO.md](./AVALIACAO.md): Critérios de avaliação e checklist
 
 ## 🧪 Testes
 
@@ -310,7 +413,7 @@ docker-compose up -d --build frontend
 cd backend
 
 # Instalar dependências de teste
-pip install -r requirements.txt pytest
+pip install -r requirements.txt pytest pytest-asyncio
 
 # Executar testes
 pytest tests/
@@ -318,6 +421,24 @@ pytest tests/
 # Executar testes com coverage
 pytest tests/ --cov=app --cov-report=html
 ```
+
+## 🔐 Segurança
+
+- **Validação de Entrada**: Todos os campos são validados e sanitizados
+- **SQL Injection Protection**: Uso de queries parametrizadas e whitelist de campos
+- **Rate Limiting**: Proteção contra abuso de API
+- **CORS Configurado**: Apenas origens permitidas podem acessar a API
+- **Connection Pooling**: Prevenção de esgotamento de conexões
+- **Logging**: Logs estruturados para auditoria e debugging
+
+## 🎨 Design e UX
+
+- **Design Moderno**: Interface limpa e profissional com gradientes e animações suaves
+- **Responsivo**: Funciona perfeitamente em desktop, tablet e mobile
+- **Tooltips**: Explicações contextuais em campos e atributos
+- **Loading States**: Feedback visual durante carregamento de dados
+- **Error Handling**: Mensagens de erro claras e acionáveis
+- **Navegação Intuitiva**: Menu de navegação claro e acessível
 
 ## 🤝 Contribuindo
 
@@ -342,6 +463,19 @@ Este projeto foi desenvolvido como parte de um desafio técnico.
 - Desafio fornecido pela NOLA
 - Dados de teste realistas para demonstração
 - Comunidade open source pelas ferramentas utilizadas
+
+## 📈 Roadmap Futuro
+
+- [ ] Sistema de autenticação completo com JWT
+- [ ] Multi-tenancy completo
+- [ ] Cache distribuído (Redis)
+- [ ] Data Warehouse separado (OLAP)
+- [ ] Agendamento de relatórios
+- [ ] Notificações de alertas
+- [ ] API GraphQL como alternativa
+- [ ] Integração com sistemas externos (iFood API, etc.)
+- [ ] Dashboard mobile nativo
+- [ ] Machine Learning para previsões mais avançadas
 
 ---
 
