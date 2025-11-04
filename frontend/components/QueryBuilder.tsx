@@ -49,13 +49,13 @@ const EXAMPLE_QUERIES = [
     query: {
       dimensions: [{ field: 'created_at', alias: 'data' }],
       metrics: [{ field: 'total_amount', aggregation: 'sum', alias: 'receita_total' }],
-      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      filters: [],
       time_range: {
         start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd'),
       },
       group_by: ['created_at'],
-      order_by: [{ field: 'created_at', direction: 'asc' }],
+      order_by: [{ field: 'data', direction: 'asc' }],
       limit: 100,
     },
   },
@@ -69,7 +69,7 @@ const EXAMPLE_QUERIES = [
         { field: 'total_amount', aggregation: 'sum', alias: 'receita_total' },
         { field: 'total_amount', aggregation: 'count', alias: 'total_pedidos' },
       ],
-      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      filters: [],
       time_range: {
         start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd'),
@@ -88,7 +88,7 @@ const EXAMPLE_QUERIES = [
         { field: 'total_amount', aggregation: 'count', alias: 'total_pedidos' },
         { field: 'total_amount', aggregation: 'sum', alias: 'receita_total' },
       ],
-      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      filters: [],
       time_range: {
         start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd'),
@@ -108,13 +108,13 @@ const EXAMPLE_QUERIES = [
         { field: 'total_discount', aggregation: 'sum', alias: 'descontos_total' },
         { field: 'total_amount', aggregation: 'count', alias: 'total_pedidos' },
       ],
-      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      filters: [],
       time_range: {
         start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd'),
       },
       group_by: ['created_at'],
-      order_by: [{ field: 'created_at', direction: 'asc' }],
+      order_by: [{ field: 'data', direction: 'asc' }],
       limit: 100,
     },
   },
@@ -128,7 +128,7 @@ const EXAMPLE_QUERIES = [
         { field: 'total_amount', aggregation: 'count', alias: 'total_pedidos' },
         { field: 'total_amount', aggregation: 'avg', alias: 'ticket_medio' },
       ],
-      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      filters: [],
       time_range: {
         start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd'),
