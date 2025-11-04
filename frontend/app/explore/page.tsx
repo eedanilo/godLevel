@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, Store, Product, Channel } from '@/lib/api'
 import QueryBuilder from '@/components/QueryBuilder'
@@ -106,7 +106,7 @@ export default function ExplorePage() {
     setSelectedEntityName(name)
   }
 
-  const getFilteredEntities = (): (Store | Product | Channel)[] => {
+  const filteredEntities = useMemo(() => {
     if (entityType === 'store') {
       const stores = storesData?.stores || []
       if (!searchTerm) return stores
@@ -127,7 +127,7 @@ export default function ExplorePage() {
       )
     }
     return []
-  }
+  }, [entityType, searchTerm, storesData, productsData, channelsData])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -286,9 +286,9 @@ export default function ExplorePage() {
 
                   {/* Entity List */}
                   <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                    {getFilteredEntities().length > 0 ? (
+                    {filteredEntities.length > 0 ? (
                       <div className="divide-y divide-gray-200">
-                        {getFilteredEntities().map((entity: Store | Product | Channel) => (
+                        {filteredEntities.map((entity: Store | Product | Channel) => (
                           <button
                             key={entity.id}
                             onClick={() => handleEntitySelect(entity.id, entity.name)}
