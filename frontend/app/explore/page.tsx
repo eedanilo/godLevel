@@ -337,7 +337,12 @@ export default function ExplorePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Query Builder */}
             <div className="lg:col-span-1">
-              <QueryBuilder query={query} onChange={setQuery} />
+              <QueryBuilder 
+                query={query} 
+                onChange={setQuery}
+                onExecute={executeQuery}
+                isExecuting={isExecuting}
+              />
             </div>
 
             {/* Results */}
@@ -348,14 +353,15 @@ export default function ExplorePage() {
                     <BarChart3 className="w-5 h-5" />
                     <span>Resultados</span>
                   </h2>
-                  <button
-                    onClick={executeQuery}
-                    disabled={isExecuting}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm hover:shadow-md"
-                  >
-                    <Play className="w-4 h-4" />
-                    <span>{isExecuting ? 'Executando...' : 'Executar Query'}</span>
-                  </button>
+                  {queryResult && queryResult.data && queryResult.data.length > 0 && (
+                    <button
+                      onClick={exportToCSV}
+                      className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm hover:shadow-md text-sm font-medium"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Exportar CSV</span>
+                    </button>
+                  )}
                 </div>
 
                 {isExecuting && (
@@ -369,16 +375,9 @@ export default function ExplorePage() {
                   <div className="text-center py-12">
                     <Info className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                     <p className="text-lg font-medium text-gray-900 mb-2">Configure sua query</p>
-                    <p className="text-sm text-gray-600 mb-6">
-                      Use os exemplos no Query Builder ou configure manualmente. Clique em "Executar Query" quando estiver pronto.
+                    <p className="text-sm text-gray-600">
+                      Use os exemplos no Query Builder ou configure manualmente. Clique em "Executar Query" no Query Builder quando estiver pronto.
                     </p>
-                    <button
-                      onClick={executeQuery}
-                      className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm hover:shadow-md mt-4"
-                    >
-                      <Play className="w-4 h-4" />
-                      <span>Executar Query</span>
-                    </button>
                   </div>
                 )}
 
@@ -389,8 +388,10 @@ export default function ExplorePage() {
                         {queryResult.count || queryResult.data?.length || 0} resultado(s) encontrado(s)
                       </div>
                       {queryResult.data && queryResult.data.length > 0 && (
-                        <div className="text-xs text-gray-500">
-                          Mostrando até 100 primeiros resultados
+                        <div className="flex items-center space-x-3">
+                          <div className="text-xs text-gray-500">
+                            Mostrando até 100 primeiros resultados
+                          </div>
                         </div>
                       )}
                     </div>

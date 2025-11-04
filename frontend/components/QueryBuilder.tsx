@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, X, Trash2, BookOpen, Lightbulb } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, X, Trash2, BookOpen, Lightbulb, Play } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 
 interface QueryBuilderProps {
   query: any
   onChange: (query: any) => void
+  onExecute?: () => void
+  isExecuting?: boolean
 }
 
 const AVAILABLE_FIELDS = [
@@ -138,8 +140,25 @@ const EXAMPLE_QUERIES = [
   },
 ]
 
-export default function QueryBuilder({ query, onChange }: QueryBuilderProps) {
-  const [showExamples, setShowExamples] = useState(false)
+export default function QueryBuilder({ query, onChange, onExecute, isExecuting }: QueryBuilderProps) {
+  const [showExamples, setShowExamples] = useState(true) // Mostrar exemplos por padrão
+  
+  // Carregar primeiro exemplo se a query estiver vazia
+  const hasQuery = query.metrics?.length > 0 || query.dimensions?.length > 0 || query.filters?.length > 0
+  
+  const loadFirstExample = () => {
+    if (!hasQuery && EXAMPLE_QUERIES.length > 0) {
+      onChange(EXAMPLE_QUERIES[0].query)
+    }
+  }
+  
+  // Carregar exemplo inicial se necessário
+  useEffect(() => {
+    if (!hasQuery) {
+      loadFirstExample()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const addDimension = () => {
     onChange({
       ...query,
@@ -459,6 +478,25 @@ export default function QueryBuilder({ query, onChange }: QueryBuilderProps) {
           max="1000"
         />
       </div>
+
+      {/* Execute Button */}
+      {onExecute && (
+        <div className="pt-4 border-t border-gray-200">
+          <button
+            onClick={onExecute}
+            disabled={isExecuting || (!query.metrics?.length && !query.dimensions?.length)}
+            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm hover:shadow-md font-medium"
+          >
+            <Play className="w-5 h-5" />
+            <span>{isExecuting ? 'Executando...' : 'Executar Query'}</span>
+          </button>
+          {(!query.metrics?.length && !query.dimensions?.length) && (
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Adicione pelo menos uma métrica ou dimensão para executar
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
