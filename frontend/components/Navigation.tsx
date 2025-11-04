@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Home, LayoutDashboard, BarChart3, LogOut, User, Menu, X, Package, Store, Users } from 'lucide-react'
 import { useState } from 'react'
