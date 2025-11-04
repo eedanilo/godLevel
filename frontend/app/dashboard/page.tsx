@@ -163,6 +163,7 @@ export default function DashboardPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
@@ -261,7 +262,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Cards */}
@@ -362,6 +363,7 @@ export default function DashboardPage() {
         )}
       </main>
     </div>
+    </>
   )
 }
 
