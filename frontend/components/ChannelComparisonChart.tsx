@@ -3,6 +3,9 @@
 import {
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -47,9 +50,11 @@ export default function ChannelComparisonChart({ data, isLoading }: ChannelCompa
     porcentagem: channel.revenue_percentage || 0,
   }))
 
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Comparação de Canais</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Participação dos Canais no Faturamento</h3>
       <div className="mb-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {data.map((channel) => (
@@ -67,27 +72,58 @@ export default function ChannelComparisonChart({ data, isLoading }: ChannelCompa
           ))}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="canal" />
-          <YAxis />
-          <Tooltip 
-            formatter={(value: any, name: string) => {
-              if (name === 'porcentagem') {
-                return `${value.toFixed(1)}%`
-              }
-              if (typeof value === 'number') {
-                return value < 1000 ? value : formatCurrency(value)
-              }
-              return value
-            }}
-          />
-          <Legend />
-          <Bar dataKey="pedidos" fill="#ef4444" name="Pedidos" />
-          <Bar dataKey="receita" fill="#dc2626" name="Receita (R$)" />
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <h4 className="text-md font-medium text-gray-700 mb-2">Gráfico de Participação</h4>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ canal, porcentagem }) => `${canal}: ${porcentagem.toFixed(1)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="porcentagem"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value: any) => `${value.toFixed(1)}%`}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div>
+          <h4 className="text-md font-medium text-gray-700 mb-2">Comparação de Receita</h4>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="canal" />
+              <YAxis />
+              <Tooltip 
+                formatter={(value: any, name: string) => {
+                  if (name === 'porcentagem') {
+                    return `${value.toFixed(1)}%`
+                  }
+                  if (name === 'receita') {
+                    return formatCurrency(value)
+                  }
+                  if (typeof value === 'number') {
+                    return value < 1000 ? value : formatCurrency(value)
+                  }
+                  return value
+                }}
+              />
+              <Legend />
+              <Bar dataKey="receita" fill="#3b82f6" name="Receita (R$)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   )
 }
