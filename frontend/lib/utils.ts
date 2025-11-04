@@ -16,7 +16,7 @@ export function formatNumber(value: number): string {
 export function formatTime(seconds: number): string {
   if (!seconds || seconds === 0) return 'N/A'
   
-  // Usar apenas parte inteira
+  // Usar apenas parte inteira (sem casas decimais)
   const totalSeconds = Math.floor(seconds)
   const minutes = Math.floor(totalSeconds / 60)
   const remainingSeconds = totalSeconds % 60
@@ -30,6 +30,11 @@ export function formatTime(seconds: number): string {
   }
   
   return `${minutes}min ${remainingSeconds}s`
+}
+
+// Função para truncar número para 2 casas decimais
+export function truncateToTwoDecimals(value: number): number {
+  return Math.floor(value * 100) / 100
 }
 
 export function formatPercentage(value: number): string {

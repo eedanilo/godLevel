@@ -38,6 +38,11 @@ export default function DailyTrendsChart({ data, isLoading }: DailyTrendsChartPr
     )
   }
 
+  // Função para truncar para 2 casas decimais
+  const truncateToTwoDecimals = (value: number): number => {
+    return Math.floor(value * 100) / 100
+  }
+
   const chartData = data.map((trend) => {
     try {
       // Tentar parsear a data - pode vir como string ISO ou já formatada
@@ -48,15 +53,15 @@ export default function DailyTrendsChart({ data, isLoading }: DailyTrendsChartPr
       return {
         data: dateStr,
         pedidos: trend.order_count,
-        receita: parseFloat(trend.revenue.toString()),
-        ticket_medio: parseFloat(trend.avg_ticket.toString()),
+        receita: truncateToTwoDecimals(parseFloat(trend.revenue.toString())),
+        ticket_medio: truncateToTwoDecimals(parseFloat(trend.avg_ticket.toString())),
       }
     } catch (e) {
       return {
         data: trend.date,
         pedidos: trend.order_count,
-        receita: parseFloat(trend.revenue.toString()),
-        ticket_medio: parseFloat(trend.avg_ticket.toString()),
+        receita: truncateToTwoDecimals(parseFloat(trend.revenue.toString())),
+        ticket_medio: truncateToTwoDecimals(parseFloat(trend.avg_ticket.toString())),
       }
     }
   })
@@ -87,6 +92,10 @@ export default function DailyTrendsChart({ data, isLoading }: DailyTrendsChartPr
                 if (name === 'Receita (R$)') {
                   return formatCurrency(value)
                 }
+                // Ticket médio deve ser moeda
+                if (name === 'Ticket Médio (R$)') {
+                  return formatCurrency(value)
+                }
                 return value < 1000 ? value : formatCurrency(value)
               }
               return value
@@ -106,6 +115,13 @@ export default function DailyTrendsChart({ data, isLoading }: DailyTrendsChartPr
             stroke="#dc2626" 
             strokeWidth={2}
             name="Receita (R$)"
+          />
+          <Line 
+            type="monotone" 
+            dataKey="ticket_medio" 
+            stroke="#10b981" 
+            strokeWidth={2}
+            name="Ticket Médio (R$)"
           />
         </LineChart>
       </ResponsiveContainer>

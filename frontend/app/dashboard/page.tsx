@@ -307,6 +307,10 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 mb-8">
+              <ChannelComparisonChart data={channelComparison?.channels || []} isLoading={channelsLoading} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 mb-8">
               <TopProductsChart 
                 data={topProducts?.products || []} 
                 isLoading={productsLoading}
