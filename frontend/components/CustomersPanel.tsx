@@ -420,7 +420,8 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
                       onClick={() => handleSort('days_since_last_order')}
                       className="flex items-center space-x-2 hover:text-gray-900 transition-colors w-full text-left"
                     >
-                      <span>Status</span>
+                      <Calendar className="w-3 h-3" />
+                      <span>Dias desde último pedido</span>
                       <span className="flex-shrink-0">
                         {sortField === 'days_since_last_order' ? (
                           sortDirection === 'asc' ? (
@@ -433,6 +434,9 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
                         )}
                       </span>
                     </button>
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                    <span>Status</span>
                   </th>
                 </tr>
               </thead>
@@ -496,13 +500,31 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
                       {customer.favorite_hour}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        {customer.days_since_last_order !== null && customer.days_since_last_order !== undefined ? (
+                          <>
+                            <div className="text-sm font-medium text-gray-900">
+                              {formatNumber(customer.days_since_last_order)} {customer.days_since_last_order === 1 ? 'dia' : 'dias'}
+                            </div>
+                            {customer.last_order_date && (
+                              <div className="text-xs text-gray-500">
+                                {new Date(customer.last_order_date).toLocaleDateString('pt-BR')}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-sm text-gray-500">-</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
                       {customer.is_churn_risk ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                           <AlertCircle className="w-3 h-3 mr-1" />
                           Risco de Churn
                         </span>
-                      ) : customer.days_since_last_order !== null ? (
-                        <span className="text-xs text-gray-500">
+                      ) : customer.days_since_last_order !== null && customer.days_since_last_order !== undefined ? (
+                        <span className="text-xs">
                           {customer.days_since_last_order <= 7 ? (
                             <span className="text-green-600 font-medium">Ativo</span>
                           ) : customer.days_since_last_order <= 30 ? (
