@@ -106,7 +106,7 @@ export default function ExplorePage() {
     setSelectedEntityName(name)
   }
 
-  const getFilteredEntities = () => {
+  const getFilteredEntities = (): (Store | Product | Channel)[] => {
     if (entityType === 'store') {
       const stores = storesData?.stores || []
       if (!searchTerm) return stores
@@ -448,7 +448,7 @@ export default function ExplorePage() {
               )}
             </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   )
