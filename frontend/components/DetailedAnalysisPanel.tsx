@@ -56,25 +56,36 @@ export default function DetailedAnalysisPanel({
   }
 
   const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
+    // Usar apenas parte inteira (sem casas decimais)
+    const totalSeconds = Math.floor(seconds)
+    const minutes = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
     if (minutes === 0) {
       return `${secs}s`
+    }
+    if (secs === 0) {
+      return `${minutes}min`
     }
     return `${minutes}min ${secs}s`
   }
   
   const formatTimeMinutes = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60)
-    const secs = (seconds % 60).toFixed(2)
+    // Usar apenas parte inteira (sem casas decimais)
+    const totalSeconds = Math.floor(seconds)
+    const minutes = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
     if (minutes === 0) {
       return `${secs}s`
+    }
+    if (secs === 0) {
+      return `${minutes}min`
     }
     return `${minutes}min ${secs}s`
   }
   
-  const formatDecimal = (value: number, decimals: number = 2) => {
-    return value.toFixed(decimals)
+  // Função para truncar para 2 casas decimais
+  const truncateToTwoDecimals = (value: number): number => {
+    return Math.floor(value * 100) / 100
   }
 
   const getBreakdownLabel = () => {
@@ -131,7 +142,7 @@ export default function DetailedAnalysisPanel({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Tempo Médio de Preparo</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatTimeMinutes(parseFloat(formatDecimal(data.metrics.avg_production_time)))}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatTime(data.metrics.avg_production_time)}</p>
             </div>
             <Clock className="w-8 h-8 text-yellow-500" />
           </div>
@@ -141,7 +152,7 @@ export default function DetailedAnalysisPanel({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Tempo Médio de Entrega</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatTimeMinutes(parseFloat(formatDecimal(data.metrics.avg_delivery_time)))}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatTime(data.metrics.avg_delivery_time)}</p>
             </div>
             <Clock className="w-8 h-8 text-red-500" />
           </div>
@@ -156,7 +167,11 @@ export default function DetailedAnalysisPanel({
             <span>Tendências Diárias</span>
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data.trends}>
+            <LineChart data={data.trends.map(trend => ({
+              ...trend,
+              revenue: truncateToTwoDecimals(trend.revenue),
+              avg_ticket: truncateToTwoDecimals(trend.avg_ticket),
+            }))}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="date" 
@@ -169,11 +184,17 @@ export default function DetailedAnalysisPanel({
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
               <Tooltip 
                 formatter={(value: any, name: string) => {
-                  if (name === 'revenue' || name === 'avg_ticket') {
-                    return formatCurrency(parseFloat(formatDecimal(value)))
+                  if (name === 'revenue' || name === 'Receita (R$)') {
+                    return formatCurrency(truncateToTwoDecimals(parseFloat(value.toString())))
                   }
-                  if (name === 'avg_production_time' || name === 'avg_delivery_time') {
-                    return formatTimeMinutes(parseFloat(formatDecimal(value)))
+                  if (name === 'avg_ticket' || name === 'Ticket Médio (R$)') {
+                    return formatCurrency(truncateToTwoDecimals(parseFloat(value.toString())))
+                  }
+                  if (name === 'avg_production_time' || name === 'Tempo Preparo') {
+                    return formatTime(parseFloat(value.toString()))
+                  }
+                  if (name === 'avg_delivery_time' || name === 'Tempo Entrega') {
+                    return formatTime(parseFloat(value.toString()))
                   }
                   return value
                 }}
@@ -194,7 +215,7 @@ export default function DetailedAnalysisPanel({
                 dataKey="revenue" 
                 stroke="#10b981" 
                 strokeWidth={2}
-                name="Receita"
+                name="Receita (R$)"
               />
               <Line 
                 yAxisId="right"
@@ -202,7 +223,7 @@ export default function DetailedAnalysisPanel({
                 dataKey="avg_ticket" 
                 stroke="#8b5cf6" 
                 strokeWidth={2}
-                name="Ticket Médio"
+                name="Ticket Médio (R$)"
               />
               <Line 
                 yAxisId="left"
@@ -244,8 +265,8 @@ export default function DetailedAnalysisPanel({
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
               <Tooltip 
                 formatter={(value: any, name: string) => {
-                  if (name === 'revenue') {
-                    return formatCurrency(parseFloat(formatDecimal(value)))
+                  if (name === 'revenue' || name === 'Receita (R$)') {
+                    return formatCurrency(truncateToTwoDecimals(parseFloat(value.toString())))
                   }
                   return value
                 }}

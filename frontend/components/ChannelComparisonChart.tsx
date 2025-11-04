@@ -42,7 +42,24 @@ export default function ChannelComparisonChart({ data, isLoading }: ChannelCompa
     )
   }
 
-  const chartData = data.map((channel) => ({
+  // Remover duplicatas baseado no nome do canal
+  const uniqueChannels = new Map<string, ChannelComparison>()
+  for (const channel of data) {
+    const key = channel.channel_name.trim().toLowerCase()
+    if (!uniqueChannels.has(key)) {
+      uniqueChannels.set(key, channel)
+    } else {
+      // Se já existe, manter o que tem maior receita
+      const existing = uniqueChannels.get(key)!
+      if (channel.total_revenue > existing.total_revenue) {
+        uniqueChannels.set(key, channel)
+      }
+    }
+  }
+  
+  const uniqueData = Array.from(uniqueChannels.values())
+
+  const chartData = uniqueData.map((channel) => ({
     canal: channel.channel_name,
     pedidos: channel.total_orders,
     receita: parseFloat(channel.total_revenue.toString()),
@@ -57,8 +74,8 @@ export default function ChannelComparisonChart({ data, isLoading }: ChannelCompa
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Participação dos Canais no Faturamento</h3>
       <div className="mb-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {data.map((channel) => (
-            <div key={channel.id} className="border rounded-lg p-3">
+          {uniqueData.map((channel, index) => (
+            <div key={`${channel.id}-${index}`} className="border rounded-lg p-3">
               <div className="text-sm text-gray-600">{channel.channel_name}</div>
               <div className="text-lg font-semibold text-gray-900">
                 {formatCurrency(channel.total_revenue)}

@@ -1047,8 +1047,8 @@ async def get_channel_comparison(
             
             query = f"""
                 SELECT 
-                    ch.id,
-                    ch.name as channel_name,
+                    MIN(ch.id) as id,
+                    TRIM(ch.name) as channel_name,
                     ch.type as channel_type,
                     COUNT(*)::bigint as total_orders,
                     COALESCE(SUM(s.total_amount), 0)::numeric as total_revenue,
@@ -1058,7 +1058,7 @@ async def get_channel_comparison(
                 FROM sales s
                 JOIN channels ch ON ch.id = s.channel_id
                 WHERE {where_sql}
-                GROUP BY ch.id, ch.name, ch.type
+                GROUP BY TRIM(ch.name), ch.type
                 ORDER BY total_revenue DESC
             """
             
