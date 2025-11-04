@@ -1627,7 +1627,27 @@ async def get_customers(
     current_user: Optional[dict] = Depends(get_current_user)
 ):
     """Análise de clientes e seus pedidos"""
+    import time
+    from app.core.cache import cache, cache_key
+    
+    start_time = time.time()
     try:
+        # Generate cache key
+        cache_key_str = cache_key(
+            "customers",
+            start_date or '2025-05-01',
+            end_date or '2025-05-31',
+            channel_ids,
+            get_user_store_id(current_user)
+        )
+        
+        # Try cache first (TTL: 5 minutes for customer data)
+        cached_result = await cache.get(cache_key_str)
+        if cached_result:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Cache hit for customers endpoint (took {time.time() - start_time:.2f}s)")
+            return cached_result
         # Parse channel_ids from comma-separated string
         channel_id_list = None
         if channel_ids:
@@ -1723,13 +1743,13 @@ async def get_customers(
                 ),
                 customer_all_stats AS (
                     SELECT 
-                        c.id as customer_id,
+                        cps.customer_id,
                         COUNT(DISTINCT s_all.id) as total_orders,
                         COALESCE(SUM(s_all.total_amount), 0)::numeric as total_spent,
                         MAX(s_all.created_at)::date as last_order_date
-                    FROM customers c
-                    LEFT JOIN sales s_all ON s_all.customer_id = c.id AND s_all.sale_status_desc = 'COMPLETED'
-                    GROUP BY c.id
+                    FROM customer_period_stats cps
+                    LEFT JOIN sales s_all ON s_all.customer_id = cps.customer_id AND s_all.sale_status_desc = 'COMPLETED'
+                    GROUP BY cps.customer_id
                 ),
                 customer_stats AS (
                     SELECT 
@@ -1858,7 +1878,17 @@ async def get_customers(
                     'is_churn_risk': bool(r['is_churn_risk']) if r['is_churn_risk'] is not None else False,
                 })
             
-            return {"customers": customers_data}
+            result = {"customers": customers_data}
+            
+            # Cache result for 5 minutes
+            await cache.set(cache_key_str, result, ttl=300)
+            
+            import logging
+            logger = logging.getLogger(__name__)
+            elapsed_time = time.time() - start_time
+            logger.info(f"Customers endpoint completed (took {elapsed_time:.2f}s, cached for 5min)")
+            
+            return result
     except Exception as e:
         import traceback
         traceback.print_exc()

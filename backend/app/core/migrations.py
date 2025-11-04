@@ -28,6 +28,11 @@ INDEXES = [
     # Composite indexes for common queries
     "CREATE INDEX IF NOT EXISTS idx_sales_status_created ON sales(sale_status_desc, created_at);",
     "CREATE INDEX IF NOT EXISTS idx_sales_customer_created ON sales(customer_id, created_at) WHERE customer_id IS NOT NULL;",
+    
+    # Performance indexes for customer queries (optimized order: status first for filtering)
+    "CREATE INDEX IF NOT EXISTS idx_sales_status_customer_created ON sales(sale_status_desc, customer_id, created_at) WHERE customer_id IS NOT NULL;",
+    "CREATE INDEX IF NOT EXISTS idx_sales_status_channel_created ON sales(sale_status_desc, channel_id, created_at);",
+    "CREATE INDEX IF NOT EXISTS idx_sales_status_store_created ON sales(sale_status_desc, store_id, created_at);",
 ]
 
 
