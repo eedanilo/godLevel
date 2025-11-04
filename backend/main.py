@@ -590,7 +590,7 @@ def build_query(query: QueryRequest) -> Dict[str, Any]:
             # Otherwise, sanitize as a field name
             if field in defined_aliases:
                 # It's an alias - just sanitize for basic safety (no SQL injection)
-                from app.utils.query_validation import re
+                import re
                 if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', field):
                     order_by_parts.append(f'"{field}" {direction}')
                 else:
