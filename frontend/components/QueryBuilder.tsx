@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, X, Trash2 } from 'lucide-react'
+import { Plus, X, Trash2, BookOpen, Lightbulb } from 'lucide-react'
+import { format, subDays } from 'date-fns'
 
 interface QueryBuilderProps {
   query: any
@@ -38,7 +39,107 @@ const OPERATORS = [
   { value: 'like', label: 'Contém' },
 ]
 
+// Exemplos de queries pré-configuradas
+const EXAMPLE_QUERIES = [
+  {
+    name: 'Receita Total por Dia',
+    description: 'Visualize a receita total agrupada por dia',
+    query: {
+      dimensions: [{ field: 'created_at', alias: 'data' }],
+      metrics: [{ field: 'total_amount', aggregation: 'sum', alias: 'receita_total' }],
+      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      time_range: {
+        start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd'),
+      },
+      group_by: ['created_at'],
+      order_by: [{ field: 'created_at', direction: 'asc' }],
+      limit: 100,
+    },
+  },
+  {
+    name: 'Ticket Médio por Loja',
+    description: 'Compare o ticket médio de cada loja',
+    query: {
+      dimensions: [{ field: 'store_id', alias: 'loja_id' }],
+      metrics: [
+        { field: 'total_amount', aggregation: 'avg', alias: 'ticket_medio' },
+        { field: 'total_amount', aggregation: 'sum', alias: 'receita_total' },
+        { field: 'total_amount', aggregation: 'count', alias: 'total_pedidos' },
+      ],
+      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      time_range: {
+        start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd'),
+      },
+      group_by: ['store_id'],
+      order_by: [{ field: 'ticket_medio', direction: 'desc' }],
+      limit: 100,
+    },
+  },
+  {
+    name: 'Pedidos por Canal',
+    description: 'Veja quantos pedidos foram feitos em cada canal',
+    query: {
+      dimensions: [{ field: 'channel_id', alias: 'canal_id' }],
+      metrics: [
+        { field: 'total_amount', aggregation: 'count', alias: 'total_pedidos' },
+        { field: 'total_amount', aggregation: 'sum', alias: 'receita_total' },
+      ],
+      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      time_range: {
+        start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd'),
+      },
+      group_by: ['channel_id'],
+      order_by: [{ field: 'total_pedidos', direction: 'desc' }],
+      limit: 100,
+    },
+  },
+  {
+    name: 'Receita e Descontos por Dia',
+    description: 'Analise receita e descontos aplicados ao longo do tempo',
+    query: {
+      dimensions: [{ field: 'created_at', alias: 'data' }],
+      metrics: [
+        { field: 'total_amount', aggregation: 'sum', alias: 'receita_total' },
+        { field: 'total_discount', aggregation: 'sum', alias: 'descontos_total' },
+        { field: 'total_amount', aggregation: 'count', alias: 'total_pedidos' },
+      ],
+      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      time_range: {
+        start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd'),
+      },
+      group_by: ['created_at'],
+      order_by: [{ field: 'created_at', direction: 'asc' }],
+      limit: 100,
+    },
+  },
+  {
+    name: 'Top Clientes por Valor',
+    description: 'Identifique os clientes que mais gastaram',
+    query: {
+      dimensions: [{ field: 'customer_id', alias: 'cliente_id' }],
+      metrics: [
+        { field: 'total_amount', aggregation: 'sum', alias: 'valor_total_gasto' },
+        { field: 'total_amount', aggregation: 'count', alias: 'total_pedidos' },
+        { field: 'total_amount', aggregation: 'avg', alias: 'ticket_medio' },
+      ],
+      filters: [{ field: 'sale_status_desc', operator: 'eq', value: 'COMPLETED' }],
+      time_range: {
+        start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd'),
+      },
+      group_by: ['customer_id'],
+      order_by: [{ field: 'valor_total_gasto', direction: 'desc' }],
+      limit: 50,
+    },
+  },
+]
+
 export default function QueryBuilder({ query, onChange }: QueryBuilderProps) {
+  const [showExamples, setShowExamples] = useState(false)
   const addDimension = () => {
     onChange({
       ...query,
@@ -118,9 +219,55 @@ export default function QueryBuilder({ query, onChange }: QueryBuilderProps) {
     })
   }
 
+  const loadExample = (example: any) => {
+    onChange(example.query)
+    setShowExamples(false)
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
-      <h2 className="text-lg font-semibold text-gray-900">Query Builder</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">Query Builder</h2>
+        <button
+          onClick={() => setShowExamples(!showExamples)}
+          className="flex items-center space-x-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Exemplos</span>
+        </button>
+      </div>
+
+      {/* Examples Panel */}
+      {showExamples && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 space-y-3">
+          <div className="flex items-start space-x-2">
+            <Lightbulb className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-blue-900 mb-2">Queries de Exemplo</h3>
+              <p className="text-xs text-blue-700 mb-3">
+                Clique em um exemplo para carregar a query pré-configurada. Você pode editar depois.
+              </p>
+              <div className="space-y-2">
+                {EXAMPLE_QUERIES.map((example, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => loadExample(example)}
+                    className="w-full text-left bg-white/80 hover:bg-white rounded-lg p-3 border border-blue-200 hover:border-blue-300 transition-all shadow-sm hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 mb-1">{example.name}</p>
+                        <p className="text-xs text-gray-600">{example.description}</p>
+                      </div>
+                      <Plus className="w-4 h-4 text-blue-600 ml-2 flex-shrink-0 mt-0.5" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Time Range */}
       <div>

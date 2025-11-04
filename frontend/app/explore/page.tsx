@@ -343,10 +343,20 @@ export default function ExplorePage() {
             {/* Results */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                  <BarChart3 className="w-5 h-5" />
-                  <span>Resultados</span>
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                    <BarChart3 className="w-5 h-5" />
+                    <span>Resultados</span>
+                  </h2>
+                  <button
+                    onClick={executeQuery}
+                    disabled={isExecuting}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm hover:shadow-md"
+                  >
+                    <Play className="w-4 h-4" />
+                    <span>{isExecuting ? 'Executando...' : 'Executar Query'}</span>
+                  </button>
+                </div>
 
                 {isExecuting && (
                   <div className="text-center py-12">
@@ -359,7 +369,16 @@ export default function ExplorePage() {
                   <div className="text-center py-12">
                     <Info className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                     <p className="text-lg font-medium text-gray-900 mb-2">Configure sua query</p>
-                    <p className="text-sm text-gray-600 mb-6">Selecione pelo menos uma métrica ou dimensão para visualizar os dados</p>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Use os exemplos no Query Builder ou configure manualmente. Clique em "Executar Query" quando estiver pronto.
+                    </p>
+                    <button
+                      onClick={executeQuery}
+                      className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm hover:shadow-md mt-4"
+                    >
+                      <Play className="w-4 h-4" />
+                      <span>Executar Query</span>
+                    </button>
                   </div>
                 )}
 
