@@ -189,37 +189,6 @@ export default function Home() {
             </p>
           </Link>
         </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h3 className="text-2xl font-semibold text-gray-900 mb-6">Início Rápido</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link 
-              href="/dashboard?view=overview"
-              className="px-6 py-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-center font-medium"
-            >
-              Ver Overview do Mês
-            </Link>
-            <Link 
-              href="/dashboard?view=products"
-              className="px-6 py-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-center font-medium"
-            >
-              Top 10 Produtos Mais Vendidos
-            </Link>
-            <Link 
-              href="/dashboard?view=stores"
-              className="px-6 py-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-center font-medium"
-            >
-              Comparar Performance de Lojas
-            </Link>
-            <Link 
-              href="/dashboard?view=customers"
-              className="px-6 py-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-center font-medium"
-            >
-              Análise de Clientes
-            </Link>
-          </div>
-        </div>
       </main>
     </div>
     </ProtectedRoute>
