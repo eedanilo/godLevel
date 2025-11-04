@@ -22,7 +22,7 @@ interface StorePerformanceTableProps {
   isLoading?: boolean
 }
 
-type SortField = 'store_name' | 'total_orders' | 'total_revenue' | 'avg_ticket' | 'avg_production_time' | 'avg_delivery_time'
+type SortField = 'store_name' | 'city' | 'total_orders' | 'total_revenue' | 'avg_ticket' | 'avg_production_time' | 'avg_delivery_time'
 type SortDirection = 'asc' | 'desc' | null
 
 export default function StorePerformanceTable({ data, isLoading }: StorePerformanceTableProps) {
@@ -48,11 +48,31 @@ export default function StorePerformanceTable({ data, isLoading }: StorePerforma
   const sortedData = [...data]
   if (sortField && sortDirection) {
     sortedData.sort((a, b) => {
-      const aVal = a[sortField]
-      const bVal = b[sortField]
-      if (aVal === bVal) return 0
-      const comparison = aVal > bVal ? 1 : -1
-      return sortDirection === 'asc' ? comparison : -comparison
+      let aVal: any
+      let bVal: any
+      
+      if (sortField === 'city') {
+        // Para cidade, ordenar por cidade, estado
+        aVal = `${a.city}, ${a.state}`.toLowerCase()
+        bVal = `${b.city}, ${b.state}`.toLowerCase()
+      } else {
+        aVal = a[sortField]
+        bVal = b[sortField]
+      }
+      
+      // Tratar valores nulos/undefined
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      
+      // Comparação para strings e números
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const comparison = aVal.localeCompare(bVal, 'pt-BR', { sensitivity: 'base' })
+        return sortDirection === 'asc' ? comparison : -comparison
+      } else {
+        const comparison = aVal > bVal ? 1 : aVal < bVal ? -1 : 0
+        return sortDirection === 'asc' ? comparison : -comparison
+      }
     })
   }
   if (isLoading) {
@@ -91,10 +111,56 @@ export default function StorePerformanceTable({ data, isLoading }: StorePerforma
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Loja
+                <button
+                  onClick={() => handleSort('store_name')}
+                  className="flex items-center space-x-2 hover:text-gray-700 transition-colors w-full text-left group"
+                >
+                  <span className="flex items-center space-x-1">
+                    <span>Loja</span>
+                    <TooltipComponent 
+                      content="Nome da loja. Clique para ordenar por nome."
+                      icon={true}
+                      position="top"
+                    />
+                  </span>
+                  <span className="flex-shrink-0">
+                    {sortField === 'store_name' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-4 h-4 text-primary-600" />
+                      ) : (
+                        <ArrowDown className="w-4 h-4 text-primary-600" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-4 h-4 text-gray-400" />
+                    )}
+                  </span>
+                </button>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cidade
+                <button
+                  onClick={() => handleSort('city')}
+                  className="flex items-center space-x-2 hover:text-gray-700 transition-colors w-full text-left group"
+                >
+                  <span className="flex items-center space-x-1">
+                    <span>Cidade</span>
+                    <TooltipComponent 
+                      content="Cidade e estado da loja. Clique para ordenar por localização."
+                      icon={true}
+                      position="top"
+                    />
+                  </span>
+                  <span className="flex-shrink-0">
+                    {sortField === 'city' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-4 h-4 text-primary-600" />
+                      ) : (
+                        <ArrowDown className="w-4 h-4 text-primary-600" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-4 h-4 text-gray-400" />
+                    )}
+                  </span>
+                </button>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <button
