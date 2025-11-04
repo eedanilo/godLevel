@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, Store, Product, Channel } from '@/lib/api'
 import QueryBuilder from '@/components/QueryBuilder'
-import DetailedAnalysisPanel from '@/components/DetailedAnalysisPanel'
+// import DetailedAnalysisPanel from '@/components/DetailedAnalysisPanel'
 import { Play, Download, BarChart3, Info, Store as StoreIcon, Package, Radio, Search, X } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 
@@ -106,7 +106,7 @@ export default function ExplorePage() {
     setSelectedEntityName(name)
   }
 
-  const filteredEntities = useMemo(() => {
+  const getFilteredEntities = () => {
     if (entityType === 'store') {
       const stores = storesData?.stores || []
       if (!searchTerm) return stores
@@ -127,7 +127,7 @@ export default function ExplorePage() {
       )
     }
     return []
-  }, [entityType, searchTerm, storesData, productsData, channelsData])
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -286,9 +286,9 @@ export default function ExplorePage() {
 
                   {/* Entity List */}
                   <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                    {filteredEntities.length > 0 ? (
+                    {getFilteredEntities().length > 0 ? (
                       <div className="divide-y divide-gray-200">
-                        {filteredEntities.map((entity: Store | Product | Channel) => (
+                        {getFilteredEntities().map((entity: Store | Product | Channel) => (
                           <button
                             key={entity.id}
                             onClick={() => handleEntitySelect(entity.id, entity.name)}
@@ -321,13 +321,9 @@ export default function ExplorePage() {
 
             {/* Detailed Analysis Panel */}
             {selectedEntityId && entityType && (
-              <DetailedAnalysisPanel
-                entityType={entityType}
-                entityId={selectedEntityId}
-                entityName={selectedEntityName}
-                startDate={dateRange.start}
-                endDate={dateRange.end}
-              />
+              <div className="p-4 bg-white rounded-lg shadow">
+                <p>Análise detalhada será exibida aqui (componente temporariamente desabilitado)</p>
+              </div>
             )}
           </div>
         ) : (
