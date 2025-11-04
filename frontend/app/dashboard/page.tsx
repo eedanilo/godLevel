@@ -16,10 +16,7 @@ import InsightsPanel from '@/components/InsightsPanel'
 import CustomersPanel from '@/components/CustomersPanel'
 import StoreSelector from '@/components/StoreSelector'
 import Tooltip from '@/components/Tooltip'
-import dynamic from 'next/dynamic'
 import { useAuth } from '@/contexts/AuthContext'
-
-const ProtectedRoute = dynamic(() => import('@/components/ProtectedRoute'), { ssr: false })
 import { Calendar, TrendingUp, Package, Store, Clock, User, LogOut } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -167,8 +164,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -366,8 +362,7 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
-      </div>
-    </ProtectedRoute>
+    </div>
   )
 }
 
