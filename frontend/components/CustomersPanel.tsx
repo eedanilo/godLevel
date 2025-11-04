@@ -46,7 +46,7 @@ export default function CustomersPanel({ dateRange, selectedChannelId }: Custome
     queryFn: () => api.getCustomers({
       start_date: dateRange.start,
       end_date: dateRange.end,
-      channel_ids: selectedChannelId !== null ? [selectedChannelId] : undefined,
+      channel_ids: selectedChannelId !== null && selectedChannelId !== undefined ? [selectedChannelId] : undefined,
     }),
   })
 
