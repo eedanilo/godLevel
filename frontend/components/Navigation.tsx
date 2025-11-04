@@ -14,8 +14,18 @@ const roleLabels: Record<string, string> = {
 
 export default function Navigation() {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const { user, logout, isAuthenticated } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Não mostrar navegação na página de login
+  if (pathname === '/login') {
+    return null
+  }
+
+  // Não mostrar navegação se não estiver autenticado
+  if (!isAuthenticated) {
+    return null
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -73,11 +83,11 @@ export default function Navigation() {
           <div className="hidden md:flex items-center space-x-4">
             {user && (
               <>
-                <div className="flex items-center space-x-2 text-sm text-gray-700">
-                  <User className="w-4 h-4" />
-                  <span className="font-medium">{user.name}</span>
-                  <span className="text-gray-500">({roleLabels[user.role] || user.role})</span>
-                </div>
+                  <div className="flex items-center space-x-2 text-sm text-gray-700">
+                    <User className="w-4 h-4" />
+                    <span className="font-medium">{user.name}</span>
+                    <span className="text-gray-500">({getRoleLabel(user.role, user.role_label)})</span>
+                  </div>
                 <button
                   onClick={handleLogout}
                   className="flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
@@ -133,7 +143,7 @@ export default function Navigation() {
                     <div className="flex items-center space-x-2 text-sm text-gray-700 mb-2">
                       <User className="w-4 h-4" />
                       <span className="font-medium">{user.name}</span>
-                      <span className="text-gray-500">({roleLabels[user.role] || user.role})</span>
+                      <span className="text-gray-500">({getRoleLabel(user.role, user.role_label)})</span>
                     </div>
                     <button
                       onClick={handleLogout}

@@ -81,7 +81,8 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
         "id": user["id"],
         "email": user["email"],
         "name": user["name"],
-        "role": user["role"]
+        "role": user["role"],
+        "role_label": user.get("role_label", user["role"])
     }
 
 
