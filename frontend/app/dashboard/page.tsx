@@ -104,10 +104,11 @@ export default function DashboardPage() {
   })
 
   const { data: storePerformance, isLoading: storesLoading } = useQuery({
-    queryKey: ['store-performance', dateRange.start, dateRange.end],
+    queryKey: ['store-performance', dateRange.start, dateRange.end, selectedChannelId],
     queryFn: () => api.getStorePerformance({
       start_date: dateRange.start,
       end_date: dateRange.end,
+      channel_ids: selectedChannelId !== null ? [selectedChannelId] : undefined,
     }),
   })
 
@@ -358,7 +359,7 @@ export default function DashboardPage() {
 
         {view === 'customers' && (
           <div className="grid grid-cols-1 gap-6">
-            <CustomersPanel dateRange={dateRange} />
+            <CustomersPanel dateRange={dateRange} selectedChannelId={selectedChannelId} />
           </div>
         )}
       </main>

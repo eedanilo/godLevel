@@ -204,10 +204,14 @@ class ApiClient {
   async getStorePerformance(params?: {
     start_date?: string
     end_date?: string
+    channel_ids?: number[]
   }): Promise<{ stores: StorePerformance[] }> {
     const queryParams = new URLSearchParams()
     if (params?.start_date) queryParams.append('start_date', params.start_date)
     if (params?.end_date) queryParams.append('end_date', params.end_date)
+    if (params?.channel_ids && params.channel_ids.length > 0) {
+      queryParams.append('channel_ids', params.channel_ids.join(','))
+    }
 
     return this.fetch(`/api/metrics/store-performance?${queryParams.toString()}`)
   }
@@ -252,10 +256,14 @@ class ApiClient {
   async getCustomers(params?: {
     start_date?: string
     end_date?: string
+    channel_ids?: number[]
   }): Promise<{ customers: CustomerData[] }> {
     const queryParams = new URLSearchParams()
     if (params?.start_date) queryParams.append('start_date', params.start_date)
     if (params?.end_date) queryParams.append('end_date', params.end_date)
+    if (params?.channel_ids && params.channel_ids.length > 0) {
+      queryParams.append('channel_ids', params.channel_ids.join(','))
+    }
 
     return this.fetch(`/api/metrics/customers?${queryParams.toString()}`)
   }

@@ -842,10 +842,19 @@ async def get_peak_hours(
 async def get_store_performance(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    channel_ids: Optional[str] = None,
     db: asyncpg.Pool = Depends(get_db)
 ):
     """Performance por loja"""
     try:
+        # Parse channel_ids from comma-separated string
+        channel_id_list = None
+        if channel_ids:
+            try:
+                channel_id_list = [int(cid.strip()) for cid in channel_ids.split(',') if cid.strip()]
+            except ValueError:
+                channel_id_list = None
+        
         async with db.acquire() as conn:
             conditions = ["s.sale_status_desc = 'COMPLETED'"]
             params_list = []
@@ -865,6 +874,12 @@ async def get_store_performance(
                 conditions.append(f"s.created_at < ${param_num}")
                 params_list.append(end_date_obj)
                 param_num += 1
+            
+            if channel_id_list:
+                placeholders = ",".join([f"${i}" for i in range(param_num, param_num + len(channel_id_list))])
+                conditions.append(f"s.channel_id IN ({placeholders})")
+                params_list.extend(channel_id_list)
+                param_num += len(channel_id_list)
             
             where_sql = " AND ".join(conditions)
             
@@ -1253,6 +1268,236 @@ async def get_insights(
                                 }
                             })
             
+            # 3. Produto mais vendido por dia/hora/canal (ex: quinta à noite no iFood)
+            # Buscar canais para identificar iFood
+            channels_query = """
+                SELECT DISTINCT id, name, type
+                FROM channels
+                WHERE LOWER(name) LIKE '%ifood%' OR LOWER(name) LIKE '%delivery%'
+                LIMIT 5
+            """
+            channels_list = await conn.fetch(channels_query)
+            
+            # Para cada dia da semana e horário noturno (18h-23h)
+            for day_of_week in [4]:  # Quinta-feira (4)
+                for hour in range(18, 24):  # Noite (18h-23h)
+                    # Buscar produtos mais vendidos nesse dia/hora/canal
+                    product_query = f"""
+                        SELECT 
+                            p.id,
+                            p.name as product_name,
+                            SUM(ps.quantity) as total_quantity,
+                            SUM(ps.total_price) as total_revenue,
+                            ch.name as channel_name
+                        FROM product_sales ps
+                        JOIN sales s ON s.id = ps.sale_id
+                        JOIN products p ON p.id = ps.product_id
+                        JOIN channels ch ON ch.id = s.channel_id
+                        WHERE s.sale_status_desc = 'COMPLETED'
+                        AND s.created_at >= ${1} AND s.created_at < ${2}
+                        AND EXTRACT(DOW FROM s.created_at) = ${3}
+                        AND EXTRACT(HOUR FROM s.created_at) = ${4}
+                        AND (LOWER(ch.name) LIKE '%ifood%' OR LOWER(ch.name) LIKE '%delivery%' OR ch.type = 'D')
+                        GROUP BY p.id, p.name, ch.name
+                        ORDER BY total_quantity DESC
+                        LIMIT 1
+                    """
+                    product_result = await conn.fetch(product_query, current_start_obj, current_end_obj, day_of_week, hour)
+                    if product_result:
+                        product = product_result[0]
+                        days_map = {0: 'Domingo', 1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado'}
+                        insights.append({
+                            'type': 'info',
+                            'category': 'produto_dia_hora',
+                            'question': 'Qual produto vende mais na quinta à noite no iFood?',
+                            'title': f"🍔 {product['product_name']} é o mais vendido na {days_map[day_of_week]} às {hour:02d}h no {product['channel_name']}",
+                            'description': f"Quantidade vendida: {int(float(product['total_quantity']))} unidades. Receita: {formatCurrency(float(product['total_revenue']))}.",
+                            'data': {
+                                'product_id': product['id'],
+                                'product_name': product['product_name'],
+                                'day_of_week': day_of_week,
+                                'hour': hour,
+                                'channel_name': product['channel_name'],
+                                'quantity': float(product['total_quantity']),
+                                'revenue': float(product['total_revenue'])
+                            }
+                        })
+            
+            # 4. Ticket médio por canal vs loja
+            # Comparar ticket médio por canal
+            ticket_by_channel_query = f"""
+                SELECT 
+                    ch.id,
+                    ch.name as channel_name,
+                    COUNT(*) as order_count,
+                    COALESCE(AVG(s.total_amount), 0)::numeric as avg_ticket
+                FROM sales s
+                JOIN channels ch ON ch.id = s.channel_id
+                WHERE s.sale_status_desc = 'COMPLETED'
+                AND s.created_at >= ${1} AND s.created_at < ${2}
+                GROUP BY ch.id, ch.name
+                ORDER BY avg_ticket DESC
+            """
+            ticket_by_channel = await conn.fetch(ticket_by_channel_query, current_start_obj, current_end_obj)
+            ticket_by_channel_prev = await conn.fetch(ticket_by_channel_query, previous_start_obj, previous_end_obj)
+            
+            channel_ticket_dict = {r['id']: r for r in ticket_by_channel}
+            channel_ticket_prev_dict = {r['id']: r for r in ticket_by_channel_prev}
+            
+            # Comparar ticket médio por loja
+            ticket_by_store_query = f"""
+                SELECT 
+                    st.id,
+                    st.name as store_name,
+                    COUNT(*) as order_count,
+                    COALESCE(AVG(s.total_amount), 0)::numeric as avg_ticket
+                FROM sales s
+                JOIN stores st ON st.id = s.store_id
+                WHERE s.sale_status_desc = 'COMPLETED'
+                AND s.created_at >= ${1} AND s.created_at < ${2}
+                GROUP BY st.id, st.name
+                ORDER BY avg_ticket DESC
+            """
+            ticket_by_store = await conn.fetch(ticket_by_store_query, current_start_obj, current_end_obj)
+            ticket_by_store_prev = await conn.fetch(ticket_by_store_query, previous_start_obj, previous_end_obj)
+            
+            store_ticket_dict = {r['id']: r for r in ticket_by_store}
+            store_ticket_prev_dict = {r['id']: r for r in ticket_by_store_prev}
+            
+            # Calcular variação média por canal
+            if ticket_by_channel and ticket_by_channel_prev:
+                avg_ticket_channel_current = sum(float(r['avg_ticket']) for r in ticket_by_channel) / len(ticket_by_channel)
+                avg_ticket_channel_prev = sum(float(r['avg_ticket']) for r in ticket_by_channel_prev) / len(ticket_by_channel_prev)
+                channel_change = ((avg_ticket_channel_current - avg_ticket_channel_prev) / avg_ticket_channel_prev * 100) if avg_ticket_channel_prev > 0 else 0
+                
+                # Calcular variação média por loja
+                avg_ticket_store_current = sum(float(r['avg_ticket']) for r in ticket_by_store) / len(ticket_by_store)
+                avg_ticket_store_prev = sum(float(r['avg_ticket']) for r in ticket_by_store_prev) / len(ticket_by_store_prev)
+                store_change = ((avg_ticket_store_current - avg_ticket_store_prev) / avg_ticket_store_prev * 100) if avg_ticket_store_prev > 0 else 0
+                
+                if channel_change < -5 or store_change < -5:  # Queda de mais de 5%
+                    if abs(channel_change) > abs(store_change):
+                        insights.append({
+                            'type': 'warning',
+                            'category': 'ticket_medio',
+                            'question': 'Meu ticket médio está caindo. É por canal ou por loja?',
+                            'title': "📉 Ticket médio está caindo principalmente por canal",
+                            'description': f"Variação por canal: {channel_change:.1f}%. Variação por loja: {store_change:.1f}%. A queda é mais acentuada por canal.",
+                            'change': channel_change,
+                            'data': {
+                                'channel_change': channel_change,
+                                'store_change': store_change,
+                                'avg_ticket_channel': avg_ticket_channel_current,
+                                'avg_ticket_store': avg_ticket_store_current
+                            }
+                        })
+                    else:
+                        insights.append({
+                            'type': 'warning',
+                            'category': 'ticket_medio',
+                            'question': 'Meu ticket médio está caindo. É por canal ou por loja?',
+                            'title': "📉 Ticket médio está caindo principalmente por loja",
+                            'description': f"Variação por loja: {store_change:.1f}%. Variação por canal: {channel_change:.1f}%. A queda é mais acentuada por loja.",
+                            'change': store_change,
+                            'data': {
+                                'channel_change': channel_change,
+                                'store_change': store_change,
+                                'avg_ticket_channel': avg_ticket_channel_current,
+                                'avg_ticket_store': avg_ticket_store_current
+                            }
+                        })
+            
+            # 5. Tempo de entrega por dia/hora
+            delivery_time_query = f"""
+                SELECT 
+                    EXTRACT(DOW FROM s.created_at)::integer as day_of_week,
+                    EXTRACT(HOUR FROM s.created_at)::integer as hour,
+                    COUNT(*) as order_count,
+                    COALESCE(AVG(s.delivery_seconds), 0)::numeric as avg_delivery_time
+                FROM sales s
+                WHERE s.sale_status_desc = 'COMPLETED'
+                AND s.created_at >= ${1} AND s.created_at < ${2}
+                AND s.delivery_seconds IS NOT NULL
+                GROUP BY EXTRACT(DOW FROM s.created_at), EXTRACT(HOUR FROM s.created_at)
+                ORDER BY avg_delivery_time DESC
+                LIMIT 10
+            """
+            delivery_times = await conn.fetch(delivery_time_query, current_start_obj, current_end_obj)
+            delivery_times_prev = await conn.fetch(delivery_time_query, previous_start_obj, previous_end_obj)
+            
+            delivery_dict = {(r['day_of_week'], r['hour']): r for r in delivery_times}
+            delivery_prev_dict = {(r['day_of_week'], r['hour']): r for r in delivery_times_prev}
+            
+            # Identificar pioras significativas
+            for (dow, hour), current in delivery_dict.items():
+                prev = delivery_prev_dict.get((dow, hour))
+                if prev:
+                    current_time = float(current['avg_delivery_time'])
+                    prev_time = float(prev['avg_delivery_time'])
+                    if prev_time > 0:
+                        change_pct = ((current_time - prev_time) / prev_time * 100)
+                        if change_pct > 20:  # Piora de mais de 20%
+                            days_map = {0: 'Domingo', 1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado'}
+                            insights.append({
+                                'type': 'warning',
+                                'category': 'tempo_entrega',
+                                'question': 'Meu tempo de entrega piorou. Em quais dias/horários?',
+                                'title': f"⏱️ Tempo de entrega piorou na {days_map[dow]} às {hour:02d}h",
+                                'description': f"Tempo médio aumentou {change_pct:.1f}% ({formatTime(prev_time)} → {formatTime(current_time)}). {int(current['order_count'])} pedidos nesse período.",
+                                'change': change_pct,
+                                'data': {
+                                    'day_of_week': dow,
+                                    'hour': hour,
+                                    'current_time': current_time,
+                                    'previous_time': prev_time,
+                                    'order_count': int(current['order_count'])
+                                }
+                            })
+            
+            # 6. Clientes com churn (3+ pedidos, não compram há 30 dias)
+            churn_query = f"""
+                SELECT 
+                    c.id,
+                    c.customer_name,
+                    COUNT(DISTINCT s.id) as total_orders,
+                    MAX(s.created_at)::date as last_order_date,
+                    (${3}::date - MAX(s.created_at)::date)::integer as days_since_last_order
+                FROM customers c
+                JOIN sales s ON s.customer_id = c.id AND s.sale_status_desc = 'COMPLETED'
+                WHERE c.id IS NOT NULL
+                GROUP BY c.id, c.customer_name
+                HAVING COUNT(DISTINCT s.id) >= 3
+                AND MAX(s.created_at) < ${3}::date
+                ORDER BY days_since_last_order DESC
+                LIMIT 10
+            """
+            churn_cutoff = (current_end_obj - timedelta(days=1)) - timedelta(days=30)
+            churn_customers = await conn.fetch(churn_query, current_start_obj, current_end_obj, churn_cutoff)
+            
+            if churn_customers:
+                churn_count = len(churn_customers)
+                avg_days = sum(int(r['days_since_last_order']) for r in churn_customers) / len(churn_customers)
+                insights.append({
+                    'type': 'warning',
+                    'category': 'churn',
+                    'question': 'Quais clientes compraram 3+ vezes mas não voltam há 30 dias?',
+                    'title': f"👥 {churn_count} clientes com risco de churn identificados",
+                    'description': f"{churn_count} clientes com 3+ pedidos não compram há 30+ dias. Tempo médio sem comprar: {avg_days:.0f} dias.",
+                    'data': {
+                        'churn_count': churn_count,
+                        'avg_days': avg_days,
+                        'customers': [
+                            {
+                                'id': int(r['id']),
+                                'name': str(r['customer_name']),
+                                'orders': int(r['total_orders']),
+                                'days_since': int(r['days_since_last_order'])
+                            }
+                            for r in churn_customers[:5]  # Top 5
+                        ]
+                    }
+                })
+            
             # Ordenar insights por relevância
             insights.sort(key=lambda x: (
                 0 if x['type'] == 'warning' else 1,  # Warnings primeiro
@@ -1284,10 +1529,19 @@ def formatTime(seconds: float) -> str:
 async def get_customers(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    channel_ids: Optional[str] = None,
     db: asyncpg.Pool = Depends(get_db)
 ):
     """Análise de clientes e seus pedidos"""
     try:
+        # Parse channel_ids from comma-separated string
+        channel_id_list = None
+        if channel_ids:
+            try:
+                channel_id_list = [int(cid.strip()) for cid in channel_ids.split(',') if cid.strip()]
+            except ValueError:
+                channel_id_list = None
+        
         async with db.acquire() as conn:
             # Converter datas
             current_start = start_date or '2025-05-01'
@@ -1301,6 +1555,34 @@ async def get_customers(
             churn_cutoff_date = (current_end_obj - timedelta(days=1)) - timedelta(days=30)
             
             # Query principal: dados dos clientes no período
+            # Build WHERE clause with proper parameter numbering
+            conditions = []
+            params_list = []
+            param_num = 1
+            
+            # Always add date filters
+            conditions.append(f"s.created_at >= ${param_num}")
+            params_list.append(current_start_obj)
+            param_num += 1
+            
+            conditions.append(f"s.created_at < ${param_num}")
+            params_list.append(current_end_obj)
+            param_num += 1
+            
+            # Add channel filter if provided
+            if channel_id_list:
+                placeholders = ",".join([f"${i}" for i in range(param_num, param_num + len(channel_id_list))])
+                conditions.append(f"s.channel_id IN ({placeholders})")
+                params_list.extend(channel_id_list)
+                param_num += len(channel_id_list)
+            
+            where_sql = " AND ".join(conditions)
+            where_sql_with_status = f"s.sale_status_desc = 'COMPLETED' AND {where_sql}"
+            
+            # Calculate param numbers for churn and period_end
+            churn_param_num = param_num + 1
+            period_end_param_num = param_num + 2
+            
             query = f"""
                 WITH customer_stats AS (
                     SELECT 
@@ -1314,8 +1596,9 @@ async def get_customers(
                         COUNT(DISTINCT CASE WHEN s.created_at >= ${1} AND s.created_at < ${2} THEN s.id END) as orders_in_period,
                         COALESCE(SUM(CASE WHEN s.created_at >= ${1} AND s.created_at < ${2} THEN s.total_amount ELSE 0 END), 0)::numeric as spent_in_period
                     FROM customers c
-                    LEFT JOIN sales s ON s.customer_id = c.id AND s.sale_status_desc = 'COMPLETED'
+                    LEFT JOIN sales s ON s.customer_id = c.id
                     WHERE c.id IS NOT NULL
+                    AND {where_sql_with_status}
                     GROUP BY c.id, c.customer_name, c.email, c.phone_number
                     HAVING COUNT(DISTINCT s.id) > 0
                 ),
@@ -1325,8 +1608,7 @@ async def get_customers(
                         EXTRACT(DOW FROM s.created_at)::integer as dow,
                         COUNT(*) as cnt
                     FROM sales s
-                    WHERE s.sale_status_desc = 'COMPLETED'
-                    AND s.created_at >= ${1} AND s.created_at < ${2}
+                    WHERE {where_sql_with_status}
                     AND s.customer_id IS NOT NULL
                     GROUP BY s.customer_id, EXTRACT(DOW FROM s.created_at)::integer
                 ),
@@ -1343,8 +1625,7 @@ async def get_customers(
                         EXTRACT(HOUR FROM s.created_at)::integer as hour,
                         COUNT(*) as cnt
                     FROM sales s
-                    WHERE s.sale_status_desc = 'COMPLETED'
-                    AND s.created_at >= ${1} AND s.created_at < ${2}
+                    WHERE {where_sql_with_status}
                     AND s.customer_id IS NOT NULL
                     GROUP BY s.customer_id, EXTRACT(HOUR FROM s.created_at)::integer
                 ),
@@ -1364,9 +1645,7 @@ async def get_customers(
                     FROM sales s
                     JOIN product_sales ps ON ps.sale_id = s.id
                     JOIN products p ON p.id = ps.product_id
-                    WHERE s.sale_status_desc = 'COMPLETED'
-                    AND s.created_at >= ${1}
-                    AND s.created_at < ${2}
+                    WHERE {where_sql_with_status}
                     AND s.customer_id IS NOT NULL
                     GROUP BY s.customer_id, p.name
                 ),
@@ -1387,12 +1666,12 @@ async def get_customers(
                     tp.product_name as favorite_product,
                     tp.quantity as favorite_product_quantity,
                     CASE 
-                        WHEN cs.total_orders >= 5 AND (cs.last_order_date < ${3}::date OR cs.last_order_date IS NULL) THEN true
+                        WHEN cs.total_orders >= 3 AND (cs.last_order_date < ${churn_param_num}::date OR cs.last_order_date IS NULL) THEN true
                         ELSE false
                     END as is_churn_risk,
                     CASE 
                         WHEN cs.last_order_date IS NOT NULL 
-                        THEN (${4}::date - cs.last_order_date)::integer
+                        THEN (${period_end_param_num}::date - cs.last_order_date)::integer
                         ELSE NULL
                     END as days_since_last_order
                 FROM customer_stats cs
@@ -1406,7 +1685,9 @@ async def get_customers(
             
             # Usar a data final do período (sem o +1 dia) para calcular dias desde último pedido
             period_end_date = current_end_obj - timedelta(days=1)
-            results = await conn.fetch(query, current_start_obj, current_end_obj, churn_cutoff_date, period_end_date)
+            # Combine all parameters: params_list (has dates and channels) + churn_cutoff_date, period_end_date
+            all_params = params_list + [churn_cutoff_date, period_end_date]
+            results = await conn.fetch(query, *all_params)
             
             # Converter resultados
             customers_data = []

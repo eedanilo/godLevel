@@ -11,6 +11,7 @@ interface CustomersPanelProps {
     start: string
     end: string
   }
+  selectedChannelId?: number | null
 }
 
 type SortField = 'customer_name' | 'orders_in_period' | 'spent_in_period' | 'favorite_day_of_week' | 'favorite_hour' | 'favorite_product' | 'days_since_last_order'
@@ -32,7 +33,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => ({
   label: `${i.toString().padStart(2, '0')}:00`,
 }))
 
-export default function CustomersPanel({ dateRange }: CustomersPanelProps) {
+export default function CustomersPanel({ dateRange, selectedChannelId }: CustomersPanelProps) {
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const [filterProduct, setFilterProduct] = useState<string>('')
@@ -41,10 +42,11 @@ export default function CustomersPanel({ dateRange }: CustomersPanelProps) {
   const [filterChurnOnly, setFilterChurnOnly] = useState<boolean>(false)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', dateRange.start, dateRange.end],
+    queryKey: ['customers', dateRange.start, dateRange.end, selectedChannelId],
     queryFn: () => api.getCustomers({
       start_date: dateRange.start,
       end_date: dateRange.end,
+      channel_ids: selectedChannelId !== null ? [selectedChannelId] : undefined,
     }),
   })
 

@@ -17,6 +17,7 @@ interface Insight {
   category: string
   title: string
   description: string
+  question?: string
   change?: number
   data?: any
 }
@@ -117,6 +118,11 @@ export default function InsightsPanel({ dateRange }: InsightsPanelProps) {
                         {getIcon(insight.type)}
                       </div>
                       <div className="flex-1 min-w-0">
+                        {insight.question && (
+                          <div className="mb-2">
+                            <p className="text-xs font-medium text-blue-600 italic">❓ {insight.question}</p>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between mb-1">
                           <h5 className="text-sm font-semibold text-gray-900">{insight.title}</h5>
                           <div className="flex items-center space-x-1 text-xs text-gray-500">
