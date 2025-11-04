@@ -1708,22 +1708,42 @@ async def get_customers(
             period_end_param_num = len(period_join_params) + 2
             
             query = f"""
-                WITH customer_stats AS (
+                WITH customer_period_stats AS (
                     SELECT 
                         c.id as customer_id,
                         c.customer_name,
                         c.email,
                         c.phone_number,
-                        COUNT(DISTINCT s_all.id) as total_orders,
-                        COALESCE(SUM(s_all.total_amount), 0)::numeric as total_spent,
-                        MAX(s_all.created_at)::date as last_order_date,
                         COUNT(DISTINCT s_period.id) as orders_in_period,
                         COALESCE(SUM(s_period.total_amount), 0)::numeric as spent_in_period
                     FROM customers c
                     INNER JOIN sales s_period ON {period_join_sql}
-                    LEFT JOIN sales s_all ON s_all.customer_id = c.id AND s_all.sale_status_desc = 'COMPLETED'
                     GROUP BY c.id, c.customer_name, c.email, c.phone_number
                     HAVING COUNT(DISTINCT s_period.id) > 0
+                ),
+                customer_all_stats AS (
+                    SELECT 
+                        c.id as customer_id,
+                        COUNT(DISTINCT s_all.id) as total_orders,
+                        COALESCE(SUM(s_all.total_amount), 0)::numeric as total_spent,
+                        MAX(s_all.created_at)::date as last_order_date
+                    FROM customers c
+                    LEFT JOIN sales s_all ON s_all.customer_id = c.id AND s_all.sale_status_desc = 'COMPLETED'
+                    GROUP BY c.id
+                ),
+                customer_stats AS (
+                    SELECT 
+                        cps.customer_id,
+                        cps.customer_name,
+                        cps.email,
+                        cps.phone_number,
+                        COALESCE(cas.total_orders, 0) as total_orders,
+                        COALESCE(cas.total_spent, 0)::numeric as total_spent,
+                        cas.last_order_date,
+                        cps.orders_in_period,
+                        cps.spent_in_period
+                    FROM customer_period_stats cps
+                    LEFT JOIN customer_all_stats cas ON cas.customer_id = cps.customer_id
                 ),
                 customer_days AS (
                     SELECT 
