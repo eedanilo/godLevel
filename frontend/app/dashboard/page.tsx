@@ -316,6 +316,8 @@ export default function DashboardPage() {
                 isLoading={productsLoading}
                 orderBy={topProductsOrderBy}
                 onOrderByChange={handleTopProductsOrderByChange}
+                startDate={dateRange.start}
+                endDate={dateRange.end}
               />
             </div>
           </>
@@ -328,6 +330,8 @@ export default function DashboardPage() {
               isLoading={productsLoading}
               orderBy={topProductsOrderBy}
               onOrderByChange={handleTopProductsOrderByChange}
+              startDate={dateRange.start}
+              endDate={dateRange.end}
             />
           </div>
         )}
