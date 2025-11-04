@@ -6,10 +6,17 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Home, LayoutDashboard, BarChart3, LogOut, User, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 
-const roleLabels: Record<string, string> = {
-  admin: 'Administrador',
-  owner: 'Proprietária',
-  manager: 'Gerente',
+// Mapeamento de roles para labels em português
+const getRoleLabel = (role: string, roleLabel?: string): string => {
+  if (roleLabel) return roleLabel
+  
+  const roleLabels: Record<string, string> = {
+    admin: 'Administrador',
+    owner: 'Proprietária',
+    manager: 'Gerente',
+  }
+  
+  return roleLabels[role] || role
 }
 
 export default function Navigation() {
