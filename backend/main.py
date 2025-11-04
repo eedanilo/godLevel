@@ -323,26 +323,28 @@ async def get_products(
         async with db.acquire() as conn:
             if search:
                 query = """
-                    SELECT DISTINCT
-                        p.id,
-                        p.name,
-                        c.name as category_name
+                    SELECT 
+                        MIN(p.id) as id,
+                        TRIM(p.name) as name,
+                        MAX(c.name) as category_name
                     FROM products p
                     LEFT JOIN categories c ON c.id = p.category_id
                     WHERE p.name ILIKE $1
-                    ORDER BY p.name
+                    GROUP BY TRIM(p.name)
+                    ORDER BY TRIM(p.name)
                     LIMIT $2
                 """
                 products = await conn.fetch(query, f"%{search}%", limit)
             else:
                 query = """
-                    SELECT DISTINCT
-                        p.id,
-                        p.name,
-                        c.name as category_name
+                    SELECT 
+                        MIN(p.id) as id,
+                        TRIM(p.name) as name,
+                        MAX(c.name) as category_name
                     FROM products p
                     LEFT JOIN categories c ON c.id = p.category_id
-                    ORDER BY p.name
+                    GROUP BY TRIM(p.name)
+                    ORDER BY TRIM(p.name)
                     LIMIT $1
                 """
                 products = await conn.fetch(query, limit)
