@@ -49,7 +49,8 @@ export default function Navigation() {
       if (pathname === basePath) {
         // Verificar se os query params estão presentes na URL atual
         const expectedParams = new URLSearchParams(queryString)
-        for (const [key, value] of expectedParams.entries()) {
+        const expectedEntries = Array.from(expectedParams.entries())
+        for (const [key, value] of expectedEntries) {
           if (searchParams?.get(key) !== value) {
             return false
           }
