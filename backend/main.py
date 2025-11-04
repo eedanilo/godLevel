@@ -1647,68 +1647,63 @@ async def get_customers(
             churn_cutoff_date = (current_end_obj - timedelta(days=1)) - timedelta(days=30)
             
             # Query principal: dados dos clientes no período
-            # Build WHERE clause with proper parameter numbering
-            conditions = []
-            params_list = []
-            param_num = 1
+            # Build WHERE clause for period sales
+            period_conditions = []
+            period_params = []
+            period_param_num = 1
             
-            # Always add date filters
-            conditions.append(f"s.created_at >= ${param_num}")
-            params_list.append(current_start_obj)
-            param_num += 1
+            # Always add date filters for period
+            period_conditions.append(f"s.created_at >= ${period_param_num}")
+            period_params.append(current_start_obj)
+            period_param_num += 1
             
-            conditions.append(f"s.created_at < ${param_num}")
-            params_list.append(current_end_obj)
-            param_num += 1
+            period_conditions.append(f"s.created_at < ${period_param_num}")
+            period_params.append(current_end_obj)
+            period_param_num += 1
             
             # Add channel filter if provided
             if channel_id_list:
-                placeholders = ",".join([f"${i}" for i in range(param_num, param_num + len(channel_id_list))])
-                conditions.append(f"s.channel_id IN ({placeholders})")
-                params_list.extend(channel_id_list)
-                param_num += len(channel_id_list)
+                placeholders = ",".join([f"${i}" for i in range(period_param_num, period_param_num + len(channel_id_list))])
+                period_conditions.append(f"s.channel_id IN ({placeholders})")
+                period_params.extend(channel_id_list)
+                period_param_num += len(channel_id_list)
             
             # Add store filter if user is a manager
-            param_num = add_store_filter_if_needed(conditions, params_list, param_num, current_user)
+            period_param_num = add_store_filter_if_needed(period_conditions, period_params, period_param_num, current_user)
             
-            where_sql = " AND ".join(conditions)
-            where_sql_with_status = f"s.sale_status_desc = 'COMPLETED' AND {where_sql}"
+            period_where_sql = " AND ".join(period_conditions)
+            period_where_sql_with_status = f"s.sale_status_desc = 'COMPLETED' AND {period_where_sql}"
             
-            # Calculate param numbers for churn and period_end (will be recalculated after customer_ids)
+            # Calcular churn e period_end (será calculado depois de period_join_params)
+            period_end_date = current_end_obj - timedelta(days=1)
             
-            # Simplificar a query para garantir que funcione corretamente
-            # Primeiro, vamos buscar os clientes que têm pedidos no período filtrado
-            period_filter_sql = f"""
-                SELECT DISTINCT s.customer_id
-                FROM sales s
-                WHERE {where_sql_with_status}
-                AND s.customer_id IS NOT NULL
-            """
-            period_customer_ids = await conn.fetch(period_filter_sql, *params_list)
-            period_customer_id_set = {r['customer_id'] for r in period_customer_ids if r['customer_id']}
+            # Query simplificada: buscar diretamente os clientes que têm pedidos no período
+            # Build the period filter conditions for the INNER JOIN
+            period_join_conditions = [
+                "s_period.customer_id = c.id",
+                "s_period.sale_status_desc = 'COMPLETED'",
+                f"s_period.created_at >= ${1}",
+                f"s_period.created_at < ${2}"
+            ]
+            period_join_params = [current_start_obj, current_end_obj]
+            period_join_param_num = 3
             
-            if not period_customer_id_set:
-                return {"customers": []}
+            if channel_id_list:
+                placeholders = ",".join([f"${i}" for i in range(period_join_param_num, period_join_param_num + len(channel_id_list))])
+                period_join_conditions.append(f"s_period.channel_id IN ({placeholders})")
+                period_join_params.extend(channel_id_list)
+                period_join_param_num += len(channel_id_list)
             
-            # Agora, buscar dados completos desses clientes
-            customer_ids_list = list(period_customer_id_set)
+            if get_user_store_id(current_user):
+                period_join_conditions.append(f"s_period.store_id = ${period_join_param_num}")
+                period_join_params.append(get_user_store_id(current_user))
+                period_join_param_num += 1
             
-            # Calcular os índices corretos para os parâmetros
-            # all_params = params_list + customer_ids_list + [churn_cutoff_date, period_end_date]
-            # Então:
-            # - params_list[0] = start_date (será all_params[0])
-            # - params_list[1] = end_date (será all_params[1])
-            # - customer_ids começam em all_params[len(params_list)]
-            # - churn e period_end vêm depois de customer_ids
+            period_join_sql = " AND ".join(period_join_conditions)
             
-            # Os índices na query SQL são baseados em all_params:
-            date_param_1 = 1  # start_date (params_list[0] = all_params[0] = $1)
-            date_param_2 = 2  # end_date (params_list[1] = all_params[1] = $2)
-            customer_ids_start = len(params_list) + 1  # Primeiro customer_id
-            churn_param_num = len(params_list) + len(customer_ids_list) + 1
-            period_end_param_num = len(params_list) + len(customer_ids_list) + 2
-            
-            customer_ids_placeholder = ",".join([f"${i}" for i in range(customer_ids_start, customer_ids_start + len(customer_ids_list))])
+            # Calcular os índices dos parâmetros para churn e period_end
+            churn_param_num = len(period_join_params) + 1
+            period_end_param_num = len(period_join_params) + 2
             
             query = f"""
                 WITH customer_stats AS (
@@ -1720,17 +1715,13 @@ async def get_customers(
                         COUNT(DISTINCT s_all.id) as total_orders,
                         COALESCE(SUM(s_all.total_amount), 0)::numeric as total_spent,
                         MAX(s_all.created_at)::date as last_order_date,
-                        COUNT(DISTINCT CASE WHEN s_period.id IS NOT NULL THEN s_period.id END) as orders_in_period,
-                        COALESCE(SUM(CASE WHEN s_period.id IS NOT NULL THEN s_period.total_amount ELSE 0 END), 0)::numeric as spent_in_period
+                        COUNT(DISTINCT s_period.id) as orders_in_period,
+                        COALESCE(SUM(s_period.total_amount), 0)::numeric as spent_in_period
                     FROM customers c
+                    INNER JOIN sales s_period ON {period_join_sql}
                     LEFT JOIN sales s_all ON s_all.customer_id = c.id AND s_all.sale_status_desc = 'COMPLETED'
-                    LEFT JOIN sales s_period ON s_period.customer_id = c.id 
-                        AND s_period.sale_status_desc = 'COMPLETED'
-                        AND s_period.created_at >= ${date_param_1} 
-                        AND s_period.created_at < ${date_param_2}
-                    WHERE c.id IN ({customer_ids_placeholder})
                     GROUP BY c.id, c.customer_name, c.email, c.phone_number
-                    HAVING COUNT(DISTINCT s_all.id) > 0
+                    HAVING COUNT(DISTINCT s_period.id) > 0
                 ),
                 customer_days AS (
                     SELECT 
@@ -1738,7 +1729,7 @@ async def get_customers(
                         EXTRACT(DOW FROM s.created_at)::integer as dow,
                         COUNT(*) as cnt
                     FROM sales s
-                    WHERE {where_sql_with_status}
+                    WHERE {period_where_sql_with_status}
                     AND s.customer_id IS NOT NULL
                     GROUP BY s.customer_id, EXTRACT(DOW FROM s.created_at)::integer
                 ),
@@ -1755,7 +1746,7 @@ async def get_customers(
                         EXTRACT(HOUR FROM s.created_at)::integer as hour,
                         COUNT(*) as cnt
                     FROM sales s
-                    WHERE {where_sql_with_status}
+                    WHERE {period_where_sql_with_status}
                     AND s.customer_id IS NOT NULL
                     GROUP BY s.customer_id, EXTRACT(HOUR FROM s.created_at)::integer
                 ),
@@ -1775,7 +1766,7 @@ async def get_customers(
                     FROM sales s
                     JOIN product_sales ps ON ps.sale_id = s.id
                     JOIN products p ON p.id = ps.product_id
-                    WHERE {where_sql_with_status}
+                    WHERE {period_where_sql_with_status}
                     AND s.customer_id IS NOT NULL
                     GROUP BY s.customer_id, p.name
                 ),
@@ -1812,10 +1803,8 @@ async def get_customers(
                 LIMIT 100
             """
             
-            # Usar a data final do período (sem o +1 dia) para calcular dias desde último pedido
-            period_end_date = current_end_obj - timedelta(days=1)
-            # Combine all parameters: params_list (has dates and channels) + customer_ids + churn_cutoff_date, period_end_date
-            all_params = params_list + customer_ids_list + [churn_cutoff_date, period_end_date]
+            # Combine all parameters: period_join_params (has dates, channels, store) + churn_cutoff_date, period_end_date
+            all_params = period_join_params + [churn_cutoff_date, period_end_date]
             results = await conn.fetch(query, *all_params)
             
             # Converter resultados
